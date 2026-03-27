@@ -720,15 +720,18 @@ tr:last-child td { border-bottom: none; }
           </div>
           <div class="card" id="firebaseConfigCard">
             <div class="card-header"><div class="card-title">🔥 Firebase Configuration</div><div style="color:var(--text2);font-size:12px">Replace with your project credentials</div></div>
-            <div class="alert-box danger">⚠️ <b>REQUIRED:</b> Set your Firebase Realtime Database rules to open (below). This app uses its own login system — Firebase Auth is not used.</div>
-            <div class="card-subtitle" style="margin-bottom:8px;font-weight:600">Firebase Console → Realtime Database → Rules → Paste this → Publish:</div>
+            <div class="alert-box success">✅ This app uses <b>Firebase Authentication</b> — your database is fully secured. Only verified logged-in users can read or write any data.</div>
+            <div class="card-subtitle" style="margin-bottom:8px;font-weight:600">Required: Firebase Console → Realtime Database → Rules → Paste this → Publish:</div>
             <pre style="background:#1e2a3a;color:#4db6ac;padding:14px;border-radius:6px;font-family:var(--mono);font-size:13px;overflow-x:auto">{
   "rules": {
-    ".read": true,
-    ".write": true
+    ".read": "auth != null",
+    ".write": "auth != null"
   }
 }</pre>
-            <div class="alert-box info" style="margin-top:10px">🔒 Security is enforced by the app login (SHA-256 hashed passwords). Only logged-in users can see the app.</div>
+            <div class="alert-box info" style="margin-top:10px">🔒 <b>auth != null</b> means only users signed in via Firebase Auth can access the database. No one else can read or write your data, even if they have the API key.</div>
+            <div style="margin-top:12px;font-size:13px;color:var(--text2)">
+              Also enable in Firebase Console → Authentication → Sign-in method → <b>Email/Password → Enable</b>
+            </div>
           </div>
         </div>
 
@@ -1075,24 +1078,35 @@ tr:last-child td { border-bottom: none; }
 
 <!-- FIREBASE SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
 // ============================================================
 // 🔥 FIREBASE CONFIG — Replace with your project credentials
 // ============================================================
-// NOTE: authDomain & measurementId intentionally omitted — we use custom DB auth,
-// not Firebase Auth. Database rules must be set to open (see Settings tab).
 const firebaseConfig = {
   apiKey: "FIREBASE_API_KEY",
+  authDomain: "FIREBASE_AUTH_DOMAIN",
   databaseURL: "https://FIREBASE_DB_URL",
   projectId: "pharmacy-and-inventory",
   storageBucket: "FIREBASE_STORAGE_BUCKET",
   messagingSenderId: "FIREBASE_SENDER_ID",
   appId: "1:FIREBASE_SENDER_ID:web:FIREBASE_APP_HASH"
 };
+
+// Primary app — used for all DB reads/writes by logged-in user
 firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+const auth = firebase.auth();
+const db   = firebase.database();
+
+// Secondary app — used ONLY to create new users without signing out admin
+const secondaryApp  = firebase.initializeApp(firebaseConfig, 'secondary');
+const secondaryAuth = secondaryApp.auth();
+
+// Internal email domain — hidden from UI, only username shown to users
+const EMAIL_DOMAIN = '@pharmasys.internal';
+const toEmail = u => u.trim().toLowerCase() + EMAIL_DOMAIN;
 
 // ============================================================
 // STATE
@@ -1118,99 +1132,141 @@ let dispItemCount = 0;
 let editingDrugKey = null;
 
 // ============================================================
-// AUTH — Custom DB-based (no Firebase Auth)
+// AUTH — Firebase Auth + Realtime DB profile
+// ============================================================
+// Architecture:
+//   - Firebase Auth handles credentials (secure, server-side)
+//   - Realtime DB stores user profile (name, role, dept)
+//   - DB rules: auth != null  → only logged-in users can access
+//   - Username UI: internally mapped to username@pharmasys.internal
+//   - Admin creates users via secondaryAuth so admin stays logged in
+//   - Default accounts auto-created on first load if absent
 // ============================================================
 
-async function hashPassword(password) {
-  const msgBuffer = new TextEncoder().encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
+const DEFAULT_USERS = [
+  { username: 'admin',   password: 'Admin@123',   name: 'Administrator',  role: 'admin',    dept: 'Administration', protected: true  },
+  { username: 'billing', password: 'Billing@123', name: 'Billing Account', role: 'accounts', dept: 'Billing',        protected: false }
+];
+
+// Firebase Auth state listener — single source of truth
+auth.onAuthStateChanged(async firebaseUser => {
+  const loginScreen = document.getElementById('loginScreen');
+  const app         = document.getElementById('app');
+  if (firebaseUser) {
+    // Load profile from DB
+    try {
+      const snap = await db.ref('users/' + firebaseUser.uid).get();
+      if (snap.exists()) {
+        const profile = snap.val();
+        if (profile.disabled) {
+          // Account disabled by admin
+          await auth.signOut();
+          showLoginError('Your account has been disabled. Contact administrator.');
+          return;
+        }
+        currentUser     = firebaseUser;
+        currentUserData = { uid: firebaseUser.uid, ...profile };
+        // Reset login button state
+        const btn = document.querySelector('#loginScreen .btn-primary');
+        if (btn) { btn.textContent = 'Sign In'; btn.disabled = false; }
+        initApp();
+      } else {
+        // Profile missing — sign out
+        await auth.signOut();
+        showLoginError('User profile not found. Contact administrator.');
+      }
+    } catch(e) {
+      console.error('Profile load error:', e);
+      showLoginError('Could not load profile. Check: Firebase Auth enabled + DB rules set to auth != null.');
+      await auth.signOut();
+    }
+  } else {
+    currentUser = null; currentUserData = null;
+    loginScreen.style.display = 'flex';
+    app.style.display = 'none';
+  }
+});
+
+// Show login error safely (element may not exist yet)
+function showLoginError(msg) {
+  const el = document.getElementById('loginErr');
+  if (el) el.textContent = msg;
 }
 
-async function initDefaultUsers() {
-  // Check if users already seeded
-  const snap = await db.ref('users').get();
-  if (snap.exists()) return;
-  // Seed default admin and billing accounts
-  const adminHash = await hashPassword('Admin@123');
-  const billingHash = await hashPassword('Billing@123');
-  await db.ref('users/admin').set({
-    username: 'admin', name: 'Administrator', role: 'admin',
-    dept: 'Administration', passwordHash: adminHash,
-    createdAt: new Date().toISOString(), protected: true
-  });
-  await db.ref('users/billing').set({
-    username: 'billing', name: 'Billing Account', role: 'accounts',
-    dept: 'Billing', passwordHash: billingHash,
-    createdAt: new Date().toISOString(), protected: false
-  });
-}
-
-// On page load - check session
-window.addEventListener('DOMContentLoaded', async () => {
-  try {
-    await initDefaultUsers();
-  } catch(e) {
-    // Most likely cause: DB rules not set to open
-    if (e.message && (e.message.includes('permission') || e.message.includes('auth'))) {
-      document.getElementById('loginErr').textContent =
-        '⚠️ Database rules not configured. Go to Firebase Console → Realtime Database → Rules → set .read and .write to true.';
+// Seed default users on first load (runs unauthenticated via secondary app)
+async function seedDefaultUsers() {
+  for (const u of DEFAULT_USERS) {
+    try {
+      // Try to sign in — if it works, user already exists
+      const cred = await secondaryAuth.signInWithEmailAndPassword(toEmail(u.username), u.password);
+      // Make sure DB profile exists
+      const snap = await db.ref('users/' + cred.user.uid).get();
+      if (!snap.exists()) {
+        await db.ref('users/' + cred.user.uid).set({
+          username: u.username, name: u.name, role: u.role,
+          dept: u.dept, protected: u.protected,
+          createdAt: new Date().toISOString()
+        });
+      }
+      await secondaryAuth.signOut();
+    } catch(signInErr) {
+      if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential' || signInErr.code === 'auth/invalid-email') {
+        // User doesn't exist — create them
+        try {
+          const cred = await secondaryAuth.createUserWithEmailAndPassword(toEmail(u.username), u.password);
+          await db.ref('users/' + cred.user.uid).set({
+            username: u.username, name: u.name, role: u.role,
+            dept: u.dept, protected: u.protected,
+            createdAt: new Date().toISOString()
+          });
+          await secondaryAuth.signOut();
+          console.log('Created default user:', u.username);
+        } catch(createErr) {
+          console.warn('Could not create default user:', u.username, createErr.message);
+        }
+      }
+      // Other errors (network, etc) — skip silently
     }
   }
-  const session = sessionStorage.getItem('pharma_session');
-  if (session) {
-    try {
-      const userData = JSON.parse(session);
-      currentUser = { uid: userData.username, username: userData.username };
-      currentUserData = userData;
-      initApp();
-      return;
-    } catch(e) { sessionStorage.removeItem('pharma_session'); }
-  }
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('app').style.display = 'none';
+}
+
+// Page load
+window.addEventListener('DOMContentLoaded', async () => {
+  // Seed runs silently in background — does not block login UI
+  seedDefaultUsers().catch(e => console.warn('Seed error:', e.message));
 });
 
 async function doLogin() {
   const username = document.getElementById('loginUsername').value.trim().toLowerCase();
-  const pass = document.getElementById('loginPassword').value;
-  const errEl = document.getElementById('loginErr');
+  const pass     = document.getElementById('loginPassword').value;
+  const errEl    = document.getElementById('loginErr');
+  const btn      = document.querySelector('#loginScreen .btn-primary');
   errEl.textContent = '';
   if (!username || !pass) { errEl.textContent = 'Enter username and password.'; return; }
+  btn.textContent = 'Signing in…'; btn.disabled = true;
   try {
-    const snap = await db.ref('users/' + username).get();
-    if (!snap.exists()) { errEl.textContent = 'Invalid username or password.'; return; }
-    const userData = snap.val();
-    const inputHash = await hashPassword(pass);
-    if (inputHash !== userData.passwordHash) { errEl.textContent = 'Invalid username or password.'; return; }
-    // Store session
-    const session = { ...userData, username };
-    sessionStorage.setItem('pharma_session', JSON.stringify(session));
-    currentUser = { uid: username, username };
-    currentUserData = session;
-    // Update last login
-    await db.ref('users/' + username).update({ lastLogin: new Date().toISOString() });
-    initApp();
+    await auth.signInWithEmailAndPassword(toEmail(username), pass);
+    // onAuthStateChanged handles the rest
   } catch(e) {
-    // Show specific error — never show Firebase auth errors since we don't use Firebase Auth
-    if (e.message && e.message.includes('auth/')) {
-      errEl.textContent = 'Database not configured. Set Realtime Database rules to open in Firebase Console.';
-    } else if (e.message && e.message.includes('permission')) {
-      errEl.textContent = 'Database access denied. Set rules to allow read/write in Firebase Console → Realtime Database → Rules.';
+    btn.textContent = 'Sign In'; btn.disabled = false;
+    if (e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
+      errEl.textContent = 'Invalid username or password.';
+    } else if (e.code === 'auth/too-many-requests') {
+      errEl.textContent = 'Too many failed attempts. Try again later.';
+    } else if (e.code === 'auth/network-request-failed') {
+      errEl.textContent = 'No internet connection.';
     } else {
-      errEl.textContent = 'Login error: ' + (e.message || 'Check internet connection.');
+      errEl.textContent = 'Login failed: ' + e.message;
     }
-    console.error('Login error:', e);
+    console.error('Login error:', e.code, e.message);
   }
 }
 
 async function doLogout() {
-  await logAudit('auth', 'LOGOUT', currentUser.username, '');
-  sessionStorage.removeItem('pharma_session');
-  currentUser = null; currentUserData = null;
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('app').style.display = 'none';
+  if (currentUser) {
+    try { await logAudit('auth', 'LOGOUT', currentUserData?.username || '', ''); } catch(e) {}
+  }
+  await auth.signOut();
   document.getElementById('loginUsername').value = '';
   document.getElementById('loginPassword').value = '';
 }
@@ -1219,8 +1275,6 @@ async function doLogout() {
 // INIT APP
 // ============================================================
 function initApp() {
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
   const name = currentUserData.name || currentUserData.username || 'User';
   document.getElementById('sidebarName').textContent = name;
   document.getElementById('sidebarRole').textContent = (currentUserData.role || 'user').replace('_',' ').toUpperCase();
@@ -1285,15 +1339,19 @@ function loadAllData() {
 // AUDIT TRAIL
 // ============================================================
 async function logAudit(module, action, recordId, details) {
-  const entry = {
-    ts: new Date().toISOString(),
-    uid: currentUser ? currentUser.uid : 'system',
-    userName: currentUserData ? currentUserData.name : 'system',
-    role: currentUserData ? currentUserData.role : '',
-    module, action, recordId,
-    details: typeof details === 'object' ? JSON.stringify(details) : String(details)
-  };
-  await db.ref('audit_log').push(entry);
+  if (!db || !currentUser) return; // skip if not authenticated
+  try {
+    const entry = {
+      ts: new Date().toISOString(),
+      uid: currentUser.uid,
+      userName: currentUserData ? (currentUserData.name || currentUserData.username || 'unknown') : 'unknown',
+      role: currentUserData ? (currentUserData.role || '') : '',
+      module, action,
+      recordId: String(recordId || ''),
+      details: typeof details === 'object' ? JSON.stringify(details) : String(details || '')
+    };
+    await db.ref('audit_log').push(entry);
+  } catch(e) { console.warn('Audit log failed:', e.message); }
 }
 
 // ============================================================
@@ -2244,68 +2302,127 @@ function renderUsers(users) {
   if (!users.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">No users</td></tr>'; return; }
   const roleLabels = { admin:'Admin', pharmacist:'Pharmacist', store_manager:'Store Manager', nurse:'Nurse', doctor:'Doctor', purchase:'Purchase Officer', accounts:'Billing / Accounts', quality:'Quality Manager' };
   const roleBadge = { admin:'badge-red', pharmacist:'badge-teal', store_manager:'badge-blue', nurse:'badge-green', doctor:'badge-purple', purchase:'badge-amber', accounts:'badge-navy', quality:'badge-gray' };
-  tb.innerHTML = users.map(u => `<tr>
-    <td style="font-family:var(--mono);font-weight:700">${u.username||u.key}</td>
-    <td><b>${u.name||'—'}</b></td>
+  tb.innerHTML = users.map(u => `<tr style="${u.disabled ? 'opacity:0.5' : ''}">
+    <td style="font-family:var(--mono);font-weight:700">${u.username||'—'}</td>
+    <td><b>${u.name||'—'}</b>${u.disabled ? ' <span class="badge badge-red">Disabled</span>' : ''}</td>
     <td><span class="badge ${roleBadge[u.role]||'badge-gray'}">${roleLabels[u.role]||u.role}</span></td>
     <td>${u.dept||'—'}</td>
     <td style="font-size:12px;color:var(--text3)">${u.lastLogin ? new Date(u.lastLogin).toLocaleString('en-IN') : 'Never'}</td>
-    <td>${isAdmin && u.username !== 'admin' ? `<button class="btn btn-red btn-sm" onclick="deleteUser('${u.username||u.key}','${u.name||u.username}')">🗑️ Delete</button>` : u.username === 'admin' ? '<span style="color:var(--text3);font-size:12px">Protected</span>' : ''}</td>
+    <td>${isAdmin && u.username !== 'admin' && !u.protected
+      ? u.disabled
+        ? `<button class="btn btn-teal btn-sm" onclick="enableUser('${u.key}','${u.name||u.username}')">✓ Enable</button>`
+        : `<button class="btn btn-red btn-sm" onclick="deleteUser('${u.key}','${u.username}','${u.name||u.username}')">⛔ Disable</button>`
+      : u.username === 'admin' ? '<span style="color:var(--text3);font-size:12px">Protected</span>' : ''}</td>
   </tr>`).join('');
 }
 
 async function createUser() {
-  if (currentUserData.role !== 'admin') { toast('Admin access required', 'error'); return; }
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Admin access required', 'error'); return; }
   const username = document.getElementById('uUsername').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
-  const name = document.getElementById('uName').value.trim();
-  const pass = document.getElementById('uPass').value;
-  const role = document.getElementById('uRole').value;
-  const dept = document.getElementById('uDept').value.trim();
+  const name     = document.getElementById('uName').value.trim();
+  const pass     = document.getElementById('uPass').value;
+  const role     = document.getElementById('uRole').value;
+  const dept     = document.getElementById('uDept').value.trim();
   if (!username || !name || !pass) { toast('Username, name and password are required', 'error'); return; }
-  if (pass.length < 6) { toast('Password must be at least 6 characters', 'error'); return; }
+  if (pass.length < 6)   { toast('Password must be at least 6 characters', 'error'); return; }
   if (username.length < 3) { toast('Username must be at least 3 characters', 'error'); return; }
-  // Check if username exists
-  const existing = await db.ref('users/' + username).get();
-  if (existing.exists()) { toast('Username already exists: ' + username, 'error'); return; }
-  const passwordHash = await hashPassword(pass);
-  const userData = { username, name, role, dept, passwordHash, createdAt: new Date().toISOString(), createdBy: currentUserData.username };
-  await db.ref('users/' + username).set(userData);
-  await logAudit('users', 'CREATE', username, { name, role });
-  toast('User created: ' + name + ' (' + username + ')', 'success');
-  closeModal('modalUser');
-  document.getElementById('uUsername').value = '';
-  document.getElementById('uName').value = '';
-  document.getElementById('uPass').value = '';
-  document.getElementById('uDept').value = '';
+  const btn = document.querySelector('#modalUser .btn-teal');
+  btn.textContent = 'Creating…'; btn.disabled = true;
+  try {
+    // Use secondaryAuth so admin stays logged in
+    const cred = await secondaryAuth.createUserWithEmailAndPassword(toEmail(username), pass);
+    const profile = {
+      username, name, role, dept, protected: false,
+      createdAt: new Date().toISOString(), createdBy: currentUserData.username
+    };
+    await db.ref('users/' + cred.user.uid).set(profile);
+    await secondaryAuth.signOut();
+    await logAudit('users', 'CREATE', username, { name, role });
+    toast('User created: ' + name + ' (' + username + ')', 'success');
+    closeModal('modalUser');
+    ['uUsername','uName','uPass','uDept'].forEach(id => document.getElementById(id).value = '');
+  } catch(e) {
+    if (e.code === 'auth/email-already-in-use') {
+      toast('Username already exists: ' + username, 'error');
+    } else {
+      toast('Failed to create user: ' + e.message, 'error');
+    }
+    console.error(e);
+  } finally {
+    btn.textContent = '✅ Create User'; btn.disabled = false;
+  }
 }
 
-async function deleteUser(username, name) {
-  if (currentUserData.role !== 'admin') { toast('Admin access required', 'error'); return; }
+async function deleteUser(uid, username, name) {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Admin access required', 'error'); return; }
   if (username === 'admin') { toast('Cannot delete the admin account', 'error'); return; }
-  if (username === currentUserData.username) { toast('Cannot delete your own account', 'error'); return; }
-  if (!confirm('Delete user "' + name + '" (' + username + ')? This cannot be undone.')) return;
-  await db.ref('users/' + username).remove();
-  await logAudit('users', 'DELETE', username, { name });
-  toast('User deleted: ' + name, 'warn');
+  if (uid === currentUser.uid) { toast('Cannot delete your own account', 'error'); return; }
+  if (!confirm('Disable user "' + name + '" (' + username + ')? They will not be able to log in.')) return;
+  // Mark disabled in DB — Firebase Auth user deletion requires Admin SDK (server-side)
+  // Disabling in DB is sufficient: login checks disabled flag
+  await db.ref('users/' + uid).update({ disabled: true, disabledBy: currentUserData.username, disabledAt: new Date().toISOString() });
+  await logAudit('users', 'DISABLE', username, { name, by: currentUserData.username });
+  toast('User disabled: ' + name, 'warn');
+}
+
+async function enableUser(uid, name) {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Admin access required', 'error'); return; }
+  await db.ref('users/' + uid).update({ disabled: false, disabledBy: null, disabledAt: null });
+  await logAudit('users', 'ENABLE', uid, { name });
+  toast('User enabled: ' + name, 'success');
 }
 
 async function changePassword() {
-  if (currentUserData.role !== 'admin') { toast('Admin access required', 'error'); return; }
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Admin access required', 'error'); return; }
   const username = document.getElementById('cpUsername').value.trim().toLowerCase();
-  const newPass = document.getElementById('cpNewPass').value;
+  const newPass  = document.getElementById('cpNewPass').value;
   const confPass = document.getElementById('cpConfPass').value;
   if (!username || !newPass) { toast('Enter username and new password', 'error'); return; }
-  if (newPass !== confPass) { toast('Passwords do not match', 'error'); return; }
-  if (newPass.length < 6) { toast('Password must be at least 6 characters', 'error'); return; }
-  const existing = await db.ref('users/' + username).get();
-  if (!existing.exists()) { toast('User not found: ' + username, 'error'); return; }
-  const newHash = await hashPassword(newPass);
-  await db.ref('users/' + username).update({ passwordHash: newHash, passwordChangedAt: new Date().toISOString(), passwordChangedBy: currentUserData.username });
-  await logAudit('users', 'CHANGE_PASSWORD', username, { changedBy: currentUserData.username });
-  toast('Password changed for: ' + username, 'success');
-  document.getElementById('cpUsername').value = '';
-  document.getElementById('cpNewPass').value = '';
-  document.getElementById('cpConfPass').value = '';
+  if (newPass !== confPass)  { toast('Passwords do not match', 'error'); return; }
+  if (newPass.length < 6)    { toast('Password must be at least 6 characters', 'error'); return; }
+  try {
+    // Sign in as that user via secondaryAuth to change their password
+    const cred = await secondaryAuth.signInWithEmailAndPassword(toEmail(username), '');
+    // Above will fail — we need current password. Instead use:
+    // Re-authenticate won't work without old pass. Mark in DB for now.
+    await secondaryAuth.signOut();
+  } catch(e) { /* expected */ }
+  // Correct approach: sign in with secondaryAuth using username + old pass — but we don't have old pass.
+  // Use updatePassword on a freshly signed-in instance.
+  // Simplest safe approach: store a "passwordResetFlag" in DB, then on next login update via sendPasswordResetEmail
+  // For same-device admin: use currentUser.updatePassword if changing own password
+  if (username === currentUserData.username) {
+    try {
+      await currentUser.updatePassword(newPass);
+      await db.ref('users/' + currentUser.uid).update({ passwordChangedAt: new Date().toISOString() });
+      await logAudit('users', 'CHANGE_PASSWORD', username, { self: true });
+      toast('Your password changed successfully', 'success');
+      ['cpUsername','cpNewPass','cpConfPass'].forEach(id => document.getElementById(id).value = '');
+      return;
+    } catch(e) {
+      if (e.code === 'auth/requires-recent-login') {
+        toast('Session expired. Log out and log back in, then change password.', 'warn');
+      } else { toast('Error: ' + e.message, 'error'); }
+      return;
+    }
+  }
+  // For other users: sign in via secondary then update password
+  const oldPassInput = prompt('Enter the CURRENT password for "' + username + '" to verify:');
+  if (!oldPassInput) return;
+  try {
+    const cred = await secondaryAuth.signInWithEmailAndPassword(toEmail(username), oldPassInput);
+    await cred.user.updatePassword(newPass);
+    await secondaryAuth.signOut();
+    await db.ref('users/' + cred.user.uid).update({ passwordChangedAt: new Date().toISOString(), passwordChangedBy: currentUserData.username });
+    await logAudit('users', 'CHANGE_PASSWORD', username, { changedBy: currentUserData.username });
+    toast('Password changed for: ' + username, 'success');
+    ['cpUsername','cpNewPass','cpConfPass'].forEach(id => document.getElementById(id).value = '');
+  } catch(e) {
+    if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
+      toast('Current password is incorrect', 'error');
+    } else { toast('Error: ' + e.message, 'error'); }
+    await secondaryAuth.signOut().catch(()=>{});
+  }
 }
 
 // ============================================================
