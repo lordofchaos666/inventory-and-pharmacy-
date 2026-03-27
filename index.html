@@ -259,12 +259,70 @@ tr:last-child td { border-bottom: none; }
 <body>
 
 <!-- LOGIN SCREEN -->
-<div id="loginScreen" style="display:none">
+<style>
+#loginScreen { min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#0d1b2e 0%,#1a2f52 60%,#1e3a6e 100%); }
+.login-card { background:white; border-radius:12px; padding:44px 38px; width:380px; box-shadow:0 25px 60px rgba(0,0,0,0.35); }
+.login-logo { text-align:center; margin-bottom:28px; }
+.login-logo .cross { font-size:34px; color:#00897b; display:block; margin-bottom:6px; }
+.login-logo h1 { font-size:21px; font-weight:700; color:#0d1b2e; }
+.login-logo p { font-size:11px; color:#64748b; margin-top:3px; text-transform:uppercase; letter-spacing:0.8px; }
+.form-group { margin-bottom:16px; }
+.form-group label { display:block; font-size:11px; font-weight:700; color:#64748b; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.5px; }
+.form-group input { width:100%; padding:10px 12px; border:1.5px solid #e2e8f0; border-radius:6px; font-size:14px; font-family:inherit; color:#1e293b; transition:border-color 0.2s; }
+.form-group input:focus { outline:none; border-color:#00897b; }
+.btn-primary { width:100%; padding:12px; background:#00897b; color:white; border:none; border-radius:6px; font-size:14px; font-weight:700; cursor:pointer; transition:background 0.2s; }
+.btn-primary:hover { background:#00695c; }
+.btn-primary:disabled { background:#94a3b8; cursor:not-allowed; }
+.login-err { font-size:12px; margin-top:10px; text-align:center; min-height:18px; }
+.login-err.err { color:#dc2626; }
+.login-err.ok  { color:#16a34a; }
+.login-err.inf { color:#2563eb; }
+/* setup wizard */
+#setupScreen { min-height:100vh; display:none; align-items:center; justify-content:center; background:linear-gradient(135deg,#0d1b2e 0%,#1a2f52 100%); }
+.setup-card { background:white; border-radius:12px; padding:40px 36px; width:420px; box-shadow:0 25px 60px rgba(0,0,0,0.4); }
+.setup-card h2 { font-size:18px; font-weight:700; color:#0d1b2e; margin-bottom:6px; }
+.setup-card p { font-size:13px; color:#64748b; margin-bottom:20px; line-height:1.5; }
+.setup-step { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #f1f5f9; font-size:13px; }
+.setup-step .step-icon { font-size:18px; width:28px; text-align:center; }
+.step-status { margin-left:auto; font-weight:700; font-size:12px; }
+.step-status.pending { color:#94a3b8; }
+.step-status.running { color:#f59e0b; }
+.step-status.done { color:#16a34a; }
+.step-status.fail  { color:#dc2626; }
+#setupLog { margin-top:14px; font-size:12px; color:#64748b; min-height:40px; font-family:monospace; background:#f8fafc; padding:10px; border-radius:6px; }
+</style>
+
+<!-- LOADING SCREEN -->
+<div id="loadingScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0d1b2e;">
+  <div style="text-align:center;color:white;">
+    <div style="font-size:40px;margin-bottom:12px;">✚</div>
+    <div style="font-size:16px;font-weight:600;letter-spacing:1px;">Chandrawati PharmaSys</div>
+    <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:6px;">Connecting…</div>
+  </div>
+</div>
+
+<!-- SETUP WIZARD (first time only) -->
+<div id="setupScreen">
+  <div class="setup-card">
+    <h2>✚ First Time Setup</h2>
+    <p>Creating your system accounts in Firebase. This happens only once. Do not close this window.</p>
+    <div class="setup-step"><span class="step-icon">🔌</span> Connecting to Firebase <span class="step-status pending" id="st1">Pending</span></div>
+    <div class="setup-step"><span class="step-icon">👤</span> Creating Admin account <span class="step-status pending" id="st2">Pending</span></div>
+    <div class="setup-step"><span class="step-icon">💰</span> Creating Billing account <span class="step-status pending" id="st3">Pending</span></div>
+    <div class="setup-step"><span class="step-icon">💾</span> Saving user profiles <span class="step-status pending" id="st4">Pending</span></div>
+    <div id="setupLog">Waiting to start…</div>
+    <button class="btn-primary" id="setupBtn" onclick="runSetup()" style="margin-top:18px;">🚀 Initialize System</button>
+    <p style="font-size:11px;color:#94a3b8;margin-top:12px;text-align:center;margin-bottom:0">Default passwords: Admin@1234 &nbsp;|&nbsp; Billing@1234</p>
+  </div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" style="display:none;">
   <div class="login-card">
     <div class="login-logo">
       <span class="cross">✚</span>
       <h1>Chandrawati PharmaSys</h1>
-      <p>NABH Pharmacy Management System</p>
+      <p>NABH Pharmacy Management</p>
     </div>
     <div class="form-group">
       <label>Username</label>
@@ -272,11 +330,11 @@ tr:last-child td { border-bottom: none; }
     </div>
     <div class="form-group">
       <label>Password</label>
-      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
     </div>
-    <button class="btn-primary" onclick="doLogin()">Sign In</button>
+    <button class="btn-primary" id="loginBtn" onclick="doLogin()">Sign In</button>
     <p class="login-err" id="loginErr"></p>
-    <p style="text-align:center;font-size:11px;color:var(--text3);margin-top:18px;">Chandrawati Hospital, GT Road Barwadda, Dhanbad</p>
+    <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:16px;">Chandrawati Hospital · GT Road Barwadda · Dhanbad</p>
   </div>
 </div>
 
@@ -720,18 +778,22 @@ tr:last-child td { border-bottom: none; }
           </div>
           <div class="card" id="firebaseConfigCard">
             <div class="card-header"><div class="card-title">🔥 Firebase Configuration</div><div style="color:var(--text2);font-size:12px">Replace with your project credentials</div></div>
-            <div class="alert-box success">✅ This app uses <b>Firebase Authentication</b> — your database is fully secured. Only verified logged-in users can read or write any data.</div>
-            <div class="card-subtitle" style="margin-bottom:8px;font-weight:600">Required: Firebase Console → Realtime Database → Rules → Paste this → Publish:</div>
-            <pre style="background:#1e2a3a;color:#4db6ac;padding:14px;border-radius:6px;font-family:var(--mono);font-size:13px;overflow-x:auto">{
+            <div class="alert-box success">✅ This app uses Firebase Auth — database locked to authenticated users only.</div>
+
+            <div style="margin-bottom:10px;font-size:13px;font-weight:700;color:var(--text)">Step 1 — Enable Authentication</div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Firebase Console → <b>Authentication</b> → Sign-in method → <b>Email/Password</b> → Enable → Save</div>
+
+            <div style="margin-bottom:10px;font-size:13px;font-weight:700;color:var(--text)">Step 2 — Set Database Rules</div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:8px">Firebase Console → <b>Realtime Database</b> → Rules → paste below → Publish</div>
+            <pre style="background:#1e2a3a;color:#4db6ac;padding:14px;border-radius:6px;font-family:var(--mono);font-size:13px;overflow-x:auto;margin-bottom:14px">{
   "rules": {
-    ".read": "auth != null",
+    ".read":  "auth != null",
     ".write": "auth != null"
   }
 }</pre>
-            <div class="alert-box info" style="margin-top:10px">🔒 <b>auth != null</b> means only users signed in via Firebase Auth can access the database. No one else can read or write your data, even if they have the API key.</div>
-            <div style="margin-top:12px;font-size:13px;color:var(--text2)">
-              Also enable in Firebase Console → Authentication → Sign-in method → <b>Email/Password → Enable</b>
-            </div>
+            <div style="margin-bottom:10px;font-size:13px;font-weight:700;color:var(--text)">Step 3 — First Time Setup</div>
+            <div style="font-size:13px;color:var(--text2)">Open the file → the Setup Wizard appears automatically → click <b>Initialize System</b> → wait for all steps to complete → log in.</div>
+            <div class="alert-box info" style="margin-top:12px">Default credentials: <b>admin</b> / Admin@1234 &nbsp;·&nbsp; <b>billing</b> / Billing@1234 — change after first login.</div>
           </div>
         </div>
 
@@ -1095,19 +1157,30 @@ const firebaseConfig = {
   appId: "1:FIREBASE_SENDER_ID:web:FIREBASE_APP_HASH"
 };
 
-// Primary app — used for all DB reads/writes by logged-in user
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db   = firebase.database();
 
-// Secondary app — used ONLY to create/manage users without signing out admin
-const secondaryApp  = firebase.initializeApp(firebaseConfig, 'secondary');
-const secondaryAuth = secondaryApp.auth();
-const secondaryDb   = secondaryApp.database(); // DB using secondaryAuth credentials
+// Secondary app instance — creates users without signing out the logged-in admin
+let _secondaryApp  = null;
+let _secondaryAuth = null;
+function getSecondaryAuth() {
+  if (!_secondaryAuth) {
+    _secondaryApp  = firebase.initializeApp(firebaseConfig, 'secondary');
+    _secondaryAuth = _secondaryApp.auth();
+  }
+  return _secondaryAuth;
+}
 
-// Internal email domain — hidden from UI, only username shown to users
-const EMAIL_DOMAIN = '@pharmasys.internal';
-const toEmail = u => u.trim().toLowerCase() + EMAIL_DOMAIN;
+// Email domain: .app is a valid, Google-owned TLD — Firebase Auth accepts it
+const EMAIL_DOMAIN = '@pharmasys.app';
+const toEmail = u => u.trim().toLowerCase().replace(/[^a-z0-9._-]/g,'') + EMAIL_DOMAIN;
+
+// Default accounts
+const DEFAULT_USERS = [
+  { username:'admin',   password:'Admin@1234',   name:'Administrator',  role:'admin',    dept:'Administration', protected:true  },
+  { username:'billing', password:'Billing@1234', name:'Billing Account', role:'accounts', dept:'Billing',       protected:false }
+];
 
 // ============================================================
 // STATE
@@ -1133,169 +1206,209 @@ let dispItemCount = 0;
 let editingDrugKey = null;
 
 // ============================================================
-// AUTH — Firebase Auth + Realtime DB profile
-// ============================================================
-// Architecture:
-//   - Firebase Auth handles credentials (secure, server-side)
-//   - Realtime DB stores user profile (name, role, dept)
-//   - DB rules: auth != null  → only logged-in users can access
-//   - Username UI: internally mapped to username@pharmasys.internal
-//   - Admin creates users via secondaryAuth so admin stays logged in
-//   - Default accounts auto-created on first load if absent
+// AUTH — Firebase Auth (Email/Password) + Realtime DB profiles
 // ============================================================
 
-const DEFAULT_USERS = [
-  { username: 'admin',   password: 'Admin@123',   name: 'Administrator',  role: 'admin',    dept: 'Administration', protected: true  },
-  { username: 'billing', password: 'Billing@123', name: 'Billing Account', role: 'accounts', dept: 'Billing',        protected: false }
-];
+function setStatus(id, text, cls) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = text; el.className = 'step-status ' + cls; }
+}
+function setLog(msg) {
+  const el = document.getElementById('setupLog');
+  if (el) el.textContent = msg;
+}
+function showScreen(name) {
+  ['loadingScreen','setupScreen','loginScreen'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = (id === name) ? 'flex' : 'none';
+  });
+}
+function showErr(msg, cls) {
+  const el = document.getElementById('loginErr');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'login-err ' + (cls || 'err');
+}
 
-// Firebase Auth state listener — single source of truth
+// ── Create one user account (Auth + DB profile) ──
+async function createAccount(username, password, profile) {
+  const email = toEmail(username);
+  const sa = getSecondaryAuth();
+  // Try sign-in first — if succeeds, account already exists
+  try {
+    const cred = await sa.signInWithEmailAndPassword(email, password);
+    await sa.signOut();
+    // Ensure DB profile exists
+    const snap = await db.ref('users/' + cred.user.uid).get();
+    if (!snap.exists()) {
+      await db.ref('users/' + cred.user.uid).set(profile);
+    }
+    return { uid: cred.user.uid, existed: true };
+  } catch(signInErr) {
+    // Account does not exist — create it
+    if (['auth/user-not-found','auth/wrong-password','auth/invalid-credential',
+         'auth/invalid-login-credentials','auth/invalid-email'].includes(signInErr.code)) {
+      const cred = await sa.createUserWithEmailAndPassword(email, password);
+      const uid = cred.user.uid;
+      await sa.signOut();
+      // Now sign into primary auth temporarily to write profile
+      // (DB rules require auth != null on primary app)
+      const tempCred = await auth.signInWithEmailAndPassword(email, password);
+      await db.ref('users/' + uid).set(profile);
+      await auth.signOut();
+      return { uid, existed: false };
+    }
+    throw signInErr;
+  }
+}
+
+// ── First-time setup wizard ──
+async function runSetup() {
+  const btn = document.getElementById('setupBtn');
+  btn.disabled = true; btn.textContent = 'Setting up…';
+  
+  setStatus('st1','Running…','running'); setLog('Connecting to Firebase…');
+  try {
+    await db.ref('.info/connected').get();
+    setStatus('st1','✓ Done','done'); setLog('Firebase connected.');
+  } catch(e) {
+    setStatus('st1','✗ Failed','fail');
+    setLog('Firebase connection failed: ' + e.message + ' — Check your internet.');
+    btn.disabled = false; btn.textContent = '🔄 Retry';
+    return;
+  }
+
+  // Create admin
+  setStatus('st2','Running…','running'); setLog('Creating Admin account…');
+  try {
+    const adm = DEFAULT_USERS[0];
+    await createAccount(adm.username, adm.password, {
+      username: adm.username, name: adm.name, role: adm.role,
+      dept: adm.dept, protected: true, createdAt: new Date().toISOString()
+    });
+    setStatus('st2','✓ Done','done'); setLog('Admin account ready.');
+  } catch(e) {
+    setStatus('st2','✗ Failed','fail');
+    setLog('Admin error: ' + e.code + ' — ' + e.message);
+    btn.disabled = false; btn.textContent = '🔄 Retry';
+    return;
+  }
+
+  // Create billing
+  setStatus('st3','Running…','running'); setLog('Creating Billing account…');
+  try {
+    const bil = DEFAULT_USERS[1];
+    await createAccount(bil.username, bil.password, {
+      username: bil.username, name: bil.name, role: bil.role,
+      dept: bil.dept, protected: false, createdAt: new Date().toISOString()
+    });
+    setStatus('st3','✓ Done','done'); setLog('Billing account ready.');
+  } catch(e) {
+    setStatus('st3','✗ Failed','fail');
+    setLog('Billing error: ' + e.code + ' — ' + e.message);
+    btn.disabled = false; btn.textContent = '🔄 Retry';
+    return;
+  }
+
+  setStatus('st4','✓ Done','done');
+  setLog('✅ Setup complete! Redirecting to login…');
+  localStorage.setItem('pharmasys_setup_done', '1');
+  setTimeout(() => showScreen('loginScreen'), 1200);
+}
+
+// ── Auth state listener ──
 auth.onAuthStateChanged(async firebaseUser => {
-  const loginScreen = document.getElementById('loginScreen');
-  const app         = document.getElementById('app');
   if (firebaseUser) {
-    // Load profile from DB
     try {
       const snap = await db.ref('users/' + firebaseUser.uid).get();
-      if (snap.exists()) {
-        const profile = snap.val();
-        if (profile.disabled) {
-          // Account disabled by admin
-          await auth.signOut();
-          showLoginError('Your account has been disabled. Contact administrator.');
-          return;
-        }
-        currentUser     = firebaseUser;
-        currentUserData = { uid: firebaseUser.uid, ...profile };
-        // Reset login button state
-        const btn = document.querySelector('#loginScreen .btn-primary');
-        if (btn) { btn.textContent = 'Sign In'; btn.disabled = false; }
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
-        initApp();
-      } else {
-        // Profile missing — sign out
+      if (!snap.exists()) {
         await auth.signOut();
-        showLoginError('User profile not found. Contact administrator.');
+        showErr('Profile not found. Run setup again.');
+        showScreen('loginScreen');
+        return;
       }
+      const profile = snap.val();
+      if (profile.disabled) {
+        await auth.signOut();
+        showErr('Account disabled. Contact admin.');
+        showScreen('loginScreen');
+        return;
+      }
+      currentUser     = firebaseUser;
+      currentUserData = { uid: firebaseUser.uid, ...profile };
+      const btn = document.getElementById('loginBtn');
+      if (btn) { btn.textContent = 'Sign In'; btn.disabled = false; }
+      showScreen(null); // hide all auth screens
+      document.getElementById('app').style.display = 'block';
+      initApp();
     } catch(e) {
-      console.error('Profile load error:', e);
-      showLoginError('Could not load profile. Check: Firebase Auth enabled + DB rules set to auth != null.');
       await auth.signOut();
+      showErr('DB error: ' + e.message + ' — Check Firebase DB rules (auth != null).');
+      showScreen('loginScreen');
     }
   } else {
     currentUser = null; currentUserData = null;
-    loginScreen.style.display = 'flex';
-    app.style.display = 'none';
-  }
-});
-
-// Show login error safely (element may not exist yet)
-function showLoginError(msg) {
-  const el = document.getElementById('loginErr');
-  if (el) el.textContent = msg;
-}
-
-// Seed default users — uses secondaryAuth + secondaryDb so primary auth is untouched
-// secondaryDb uses the secondaryAuth token → satisfies "auth != null" DB rules
-async function seedDefaultUsers() {
-  for (const u of DEFAULT_USERS) {
-    try {
-      // Try signing in first to see if user already exists
-      const cred = await secondaryAuth.signInWithEmailAndPassword(toEmail(u.username), u.password);
-      // User exists in Auth — ensure DB profile exists using secondaryDb
-      const snap = await secondaryDb.ref('users/' + cred.user.uid).get();
-      if (!snap.exists()) {
-        await secondaryDb.ref('users/' + cred.user.uid).set({
-          username: u.username, name: u.name, role: u.role,
-          dept: u.dept, protected: u.protected,
-          createdAt: new Date().toISOString()
-        });
-        console.log('Restored DB profile for:', u.username);
-      }
-      await secondaryAuth.signOut();
-    } catch(signInErr) {
-      const notFound = ['auth/user-not-found','auth/wrong-password',
-                        'auth/invalid-credential','auth/invalid-login-credentials'];
-      if (notFound.includes(signInErr.code)) {
-        // User doesn't exist — create Auth account + DB profile
-        try {
-          const cred = await secondaryAuth.createUserWithEmailAndPassword(toEmail(u.username), u.password);
-          // secondaryAuth is now signed in → secondaryDb write succeeds
-          await secondaryDb.ref('users/' + cred.user.uid).set({
-            username: u.username, name: u.name, role: u.role,
-            dept: u.dept, protected: u.protected,
-            createdAt: new Date().toISOString()
-          });
-          await secondaryAuth.signOut();
-          console.log('Created default user:', u.username);
-        } catch(createErr) {
-          console.error('Could not create default user:', u.username, createErr.code, createErr.message);
-        }
-      } else {
-        console.warn('Seed sign-in error for', u.username, ':', signInErr.code);
-      }
+    document.getElementById('app').style.display = 'none';
+    // Only show login if setup is done
+    if (localStorage.getItem('pharmasys_setup_done')) {
+      showScreen('loginScreen');
     }
   }
-}
-
-// Page load — AWAIT seed so login is only shown after accounts exist
-window.addEventListener('DOMContentLoaded', async () => {
-  showLoginError('Setting up… please wait.');
-  try {
-    await seedDefaultUsers();
-    showLoginError('');
-  } catch(e) {
-    console.warn('Seed error:', e.message);
-    showLoginError('');
-  }
-  // Show login screen only if not already authenticated
-  if (!auth.currentUser) {
-    document.getElementById('loginScreen').style.display = 'flex';
-  }
 });
 
+// ── Page load ──
+window.addEventListener('DOMContentLoaded', () => {
+  // onAuthStateChanged handles everything
+  // Show loading screen; setup/login screens shown based on state
+  const setupDone = localStorage.getItem('pharmasys_setup_done');
+  if (!setupDone) {
+    // Small delay to allow onAuthStateChanged to fire first
+    setTimeout(() => {
+      if (!currentUser) showScreen('setupScreen');
+    }, 2000);
+  }
+  // If already "setup done" but auth fires as null, onAuthStateChanged shows login
+});
+
+// ── Login ──
 async function doLogin() {
-  const username = document.getElementById('loginUsername').value.trim().toLowerCase();
-  const pass     = document.getElementById('loginPassword').value;
-  const errEl    = document.getElementById('loginErr');
-  const btn      = document.querySelector('#loginScreen .btn-primary');
-  errEl.textContent = '';
-  if (!username || !pass) { errEl.textContent = 'Enter username and password.'; return; }
+  const username = (document.getElementById('loginUsername').value || '').trim().toLowerCase();
+  const pass     = (document.getElementById('loginPassword').value || '');
+  const btn      = document.getElementById('loginBtn');
+  showErr('', '');
+  if (!username) { showErr('Enter your username.'); return; }
+  if (!pass)     { showErr('Enter your password.'); return; }
   btn.textContent = 'Signing in…'; btn.disabled = true;
   try {
     await auth.signInWithEmailAndPassword(toEmail(username), pass);
-    // onAuthStateChanged handles the rest
+    // onAuthStateChanged takes over from here
   } catch(e) {
     btn.textContent = 'Sign In'; btn.disabled = false;
-    if (e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
-      errEl.textContent = 'Invalid username or password.';
-    } else if (e.code === 'auth/too-many-requests') {
-      errEl.textContent = 'Too many failed attempts. Try again later.';
-    } else if (e.code === 'auth/network-request-failed') {
-      errEl.textContent = 'No internet connection.';
+    const code = e.code || '';
+    if (code.includes('user-not-found') || code.includes('wrong-password') || code.includes('invalid-credential') || code.includes('invalid-login')) {
+      showErr('Invalid username or password.');
+    } else if (code.includes('too-many-requests')) {
+      showErr('Too many attempts. Wait a few minutes.');
+    } else if (code.includes('network')) {
+      showErr('No internet connection.');
     } else {
-      errEl.textContent = 'Login failed: ' + e.message;
+      showErr('Error: ' + e.message);
     }
-    console.error('Login error:', e.code, e.message);
+    console.error('Login:', e.code, e.message);
   }
 }
 
+// ── Logout ──
 async function doLogout() {
-  if (currentUser) {
-    try { await logAudit('auth', 'LOGOUT', currentUserData?.username || '', ''); } catch(e) {}
-  }
+  try { await logAudit('auth','LOGOUT', currentUserData?.username || '',''); } catch(e) {}
   await auth.signOut();
   document.getElementById('loginUsername').value = '';
   document.getElementById('loginPassword').value = '';
 }
-
 // ============================================================
 // INIT APP
 // ============================================================
 function initApp() {
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
   const name = currentUserData.name || currentUserData.username || 'User';
   document.getElementById('sidebarName').textContent = name;
   document.getElementById('sidebarRole').textContent = (currentUserData.role || 'user').replace('_',' ').toUpperCase();
@@ -2351,14 +2464,15 @@ async function createUser() {
   btn.textContent = 'Creating…'; btn.disabled = true;
   try {
     // Use secondaryAuth so admin stays logged in
-    const cred = await secondaryAuth.createUserWithEmailAndPassword(toEmail(username), pass);
-    // secondaryAuth is now signed in — use secondaryDb so "auth != null" rule is satisfied
+    const cred = await getSecondaryAuth().createUserWithEmailAndPassword(toEmail(username), pass);
+    // secondaryAuth signed in — admin primary auth still active, db write works
     const profile = {
       username, name, role, dept, protected: false,
       createdAt: new Date().toISOString(), createdBy: currentUserData.username
     };
-    await secondaryDb.ref('users/' + cred.user.uid).set(profile);
-    await secondaryAuth.signOut();
+    // Write profile using primary auth (admin is signed in)
+    await db.ref('users/' + cred.user.uid).set(profile);
+    await getSecondaryAuth().signOut();
     await logAudit('users', 'CREATE', username, { name, role });
     toast('User created: ' + name + ' (' + username + ')', 'success');
     closeModal('modalUser');
@@ -2395,58 +2509,42 @@ async function enableUser(uid, name) {
 }
 
 async function changePassword() {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Admin access required', 'error'); return; }
-  const username = document.getElementById('cpUsername').value.trim().toLowerCase();
-  const newPass  = document.getElementById('cpNewPass').value;
-  const confPass = document.getElementById('cpConfPass').value;
-  if (!username || !newPass) { toast('Enter username and new password', 'error'); return; }
-  if (newPass !== confPass)  { toast('Passwords do not match', 'error'); return; }
-  if (newPass.length < 6)    { toast('Password must be at least 6 characters', 'error'); return; }
-  try {
-    // Sign in as that user via secondaryAuth to change their password
-    const cred = await secondaryAuth.signInWithEmailAndPassword(toEmail(username), '');
-    // Above will fail — we need current password. Instead use:
-    // Re-authenticate won't work without old pass. Mark in DB for now.
-    await secondaryAuth.signOut();
-  } catch(e) { /* expected */ }
-  // Correct approach: sign in with secondaryAuth using username + old pass — but we don't have old pass.
-  // Use updatePassword on a freshly signed-in instance.
-  // Simplest safe approach: store a "passwordResetFlag" in DB, then on next login update via sendPasswordResetEmail
-  // For same-device admin: use currentUser.updatePassword if changing own password
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Admin access required','error'); return; }
+  const username = (document.getElementById('cpUsername').value||'').trim().toLowerCase();
+  const newPass  = (document.getElementById('cpNewPass').value||'');
+  const confPass = (document.getElementById('cpConfPass').value||'');
+  if (!username || !newPass)  { toast('Enter username and new password','error'); return; }
+  if (newPass !== confPass)   { toast('Passwords do not match','error'); return; }
+  if (newPass.length < 6)     { toast('Minimum 6 characters','error'); return; }
+  // Changing own password
   if (username === currentUserData.username) {
     try {
       await currentUser.updatePassword(newPass);
-      await db.ref('users/' + currentUser.uid).update({ passwordChangedAt: new Date().toISOString() });
-      await logAudit('users', 'CHANGE_PASSWORD', username, { self: true });
-      toast('Your password changed successfully', 'success');
-      ['cpUsername','cpNewPass','cpConfPass'].forEach(id => document.getElementById(id).value = '');
-      return;
+      toast('Your password updated successfully','success');
+      ['cpUsername','cpNewPass','cpConfPass'].forEach(id => { document.getElementById(id).value=''; });
     } catch(e) {
-      if (e.code === 'auth/requires-recent-login') {
-        toast('Session expired. Log out and log back in, then change password.', 'warn');
-      } else { toast('Error: ' + e.message, 'error'); }
-      return;
+      if (e.code === 'auth/requires-recent-login') toast('Log out and back in, then change password.','warn');
+      else toast('Error: '+e.message,'error');
     }
+    return;
   }
-  // For other users: sign in via secondary then update password
-  const oldPassInput = prompt('Enter the CURRENT password for "' + username + '" to verify:');
-  if (!oldPassInput) return;
+  // Changing another user's password — need their current password
+  const oldPass = prompt('Enter the CURRENT password for "'+username+'" to verify identity:');
+  if (!oldPass) return;
+  const sa = getSecondaryAuth();
   try {
-    const cred = await secondaryAuth.signInWithEmailAndPassword(toEmail(username), oldPassInput);
+    const cred = await sa.signInWithEmailAndPassword(toEmail(username), oldPass);
     await cred.user.updatePassword(newPass);
-    await secondaryAuth.signOut();
-    await db.ref('users/' + cred.user.uid).update({ passwordChangedAt: new Date().toISOString(), passwordChangedBy: currentUserData.username });
-    await logAudit('users', 'CHANGE_PASSWORD', username, { changedBy: currentUserData.username });
-    toast('Password changed for: ' + username, 'success');
-    ['cpUsername','cpNewPass','cpConfPass'].forEach(id => document.getElementById(id).value = '');
+    await sa.signOut();
+    await logAudit('users','CHANGE_PASSWORD', username, { by: currentUserData.username });
+    toast('Password changed for: '+username,'success');
+    ['cpUsername','cpNewPass','cpConfPass'].forEach(id => { document.getElementById(id).value=''; });
   } catch(e) {
-    if (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
-      toast('Current password is incorrect', 'error');
-    } else { toast('Error: ' + e.message, 'error'); }
-    await secondaryAuth.signOut().catch(()=>{});
+    await sa.signOut().catch(()=>{});
+    if (e.code==='auth/wrong-password'||e.code==='auth/invalid-credential') toast('Current password incorrect','error');
+    else toast('Error: '+e.message,'error');
   }
 }
-
 // ============================================================
 // REPORTS
 // ============================================================
