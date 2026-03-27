@@ -259,7 +259,7 @@ tr:last-child td { border-bottom: none; }
 <body>
 
 <!-- LOGIN SCREEN -->
-<div id="loginScreen">
+<div id="loginScreen" style="display:none">
   <div class="login-card">
     <div class="login-logo">
       <span class="cross">✚</span>
@@ -1100,9 +1100,10 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db   = firebase.database();
 
-// Secondary app — used ONLY to create new users without signing out admin
+// Secondary app — used ONLY to create/manage users without signing out admin
 const secondaryApp  = firebase.initializeApp(firebaseConfig, 'secondary');
 const secondaryAuth = secondaryApp.auth();
+const secondaryDb   = secondaryApp.database(); // DB using secondaryAuth credentials
 
 // Internal email domain — hidden from UI, only username shown to users
 const EMAIL_DOMAIN = '@pharmasys.internal';
@@ -1169,6 +1170,8 @@ auth.onAuthStateChanged(async firebaseUser => {
         // Reset login button state
         const btn = document.querySelector('#loginScreen .btn-primary');
         if (btn) { btn.textContent = 'Sign In'; btn.disabled = false; }
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
         initApp();
       } else {
         // Profile missing — sign out
@@ -1193,28 +1196,33 @@ function showLoginError(msg) {
   if (el) el.textContent = msg;
 }
 
-// Seed default users on first load (runs unauthenticated via secondary app)
+// Seed default users — uses secondaryAuth + secondaryDb so primary auth is untouched
+// secondaryDb uses the secondaryAuth token → satisfies "auth != null" DB rules
 async function seedDefaultUsers() {
   for (const u of DEFAULT_USERS) {
     try {
-      // Try to sign in — if it works, user already exists
+      // Try signing in first to see if user already exists
       const cred = await secondaryAuth.signInWithEmailAndPassword(toEmail(u.username), u.password);
-      // Make sure DB profile exists
-      const snap = await db.ref('users/' + cred.user.uid).get();
+      // User exists in Auth — ensure DB profile exists using secondaryDb
+      const snap = await secondaryDb.ref('users/' + cred.user.uid).get();
       if (!snap.exists()) {
-        await db.ref('users/' + cred.user.uid).set({
+        await secondaryDb.ref('users/' + cred.user.uid).set({
           username: u.username, name: u.name, role: u.role,
           dept: u.dept, protected: u.protected,
           createdAt: new Date().toISOString()
         });
+        console.log('Restored DB profile for:', u.username);
       }
       await secondaryAuth.signOut();
     } catch(signInErr) {
-      if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential' || signInErr.code === 'auth/invalid-email') {
-        // User doesn't exist — create them
+      const notFound = ['auth/user-not-found','auth/wrong-password',
+                        'auth/invalid-credential','auth/invalid-login-credentials'];
+      if (notFound.includes(signInErr.code)) {
+        // User doesn't exist — create Auth account + DB profile
         try {
           const cred = await secondaryAuth.createUserWithEmailAndPassword(toEmail(u.username), u.password);
-          await db.ref('users/' + cred.user.uid).set({
+          // secondaryAuth is now signed in → secondaryDb write succeeds
+          await secondaryDb.ref('users/' + cred.user.uid).set({
             username: u.username, name: u.name, role: u.role,
             dept: u.dept, protected: u.protected,
             createdAt: new Date().toISOString()
@@ -1222,18 +1230,29 @@ async function seedDefaultUsers() {
           await secondaryAuth.signOut();
           console.log('Created default user:', u.username);
         } catch(createErr) {
-          console.warn('Could not create default user:', u.username, createErr.message);
+          console.error('Could not create default user:', u.username, createErr.code, createErr.message);
         }
+      } else {
+        console.warn('Seed sign-in error for', u.username, ':', signInErr.code);
       }
-      // Other errors (network, etc) — skip silently
     }
   }
 }
 
-// Page load
+// Page load — AWAIT seed so login is only shown after accounts exist
 window.addEventListener('DOMContentLoaded', async () => {
-  // Seed runs silently in background — does not block login UI
-  seedDefaultUsers().catch(e => console.warn('Seed error:', e.message));
+  showLoginError('Setting up… please wait.');
+  try {
+    await seedDefaultUsers();
+    showLoginError('');
+  } catch(e) {
+    console.warn('Seed error:', e.message);
+    showLoginError('');
+  }
+  // Show login screen only if not already authenticated
+  if (!auth.currentUser) {
+    document.getElementById('loginScreen').style.display = 'flex';
+  }
 });
 
 async function doLogin() {
@@ -1275,6 +1294,8 @@ async function doLogout() {
 // INIT APP
 // ============================================================
 function initApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
   const name = currentUserData.name || currentUserData.username || 'User';
   document.getElementById('sidebarName').textContent = name;
   document.getElementById('sidebarRole').textContent = (currentUserData.role || 'user').replace('_',' ').toUpperCase();
@@ -2331,11 +2352,12 @@ async function createUser() {
   try {
     // Use secondaryAuth so admin stays logged in
     const cred = await secondaryAuth.createUserWithEmailAndPassword(toEmail(username), pass);
+    // secondaryAuth is now signed in — use secondaryDb so "auth != null" rule is satisfied
     const profile = {
       username, name, role, dept, protected: false,
       createdAt: new Date().toISOString(), createdBy: currentUserData.username
     };
-    await db.ref('users/' + cred.user.uid).set(profile);
+    await secondaryDb.ref('users/' + cred.user.uid).set(profile);
     await secondaryAuth.signOut();
     await logAudit('users', 'CREATE', username, { name, role });
     toast('User created: ' + name + ' (' + username + ')', 'success');
