@@ -258,66 +258,11 @@ tr:last-child td { border-bottom: none; }
 </head>
 <body>
 
-<!-- LOGIN SCREEN -->
-<style>
-#loginScreen { min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#0d1b2e 0%,#1a2f52 60%,#1e3a6e 100%); }
-.login-card { background:white; border-radius:12px; padding:44px 38px; width:380px; box-shadow:0 25px 60px rgba(0,0,0,0.35); }
-.login-logo { text-align:center; margin-bottom:28px; }
-.login-logo .cross { font-size:34px; color:#00897b; display:block; margin-bottom:6px; }
-.login-logo h1 { font-size:21px; font-weight:700; color:#0d1b2e; }
-.login-logo p { font-size:11px; color:#64748b; margin-top:3px; text-transform:uppercase; letter-spacing:0.8px; }
-.form-group { margin-bottom:16px; }
-.form-group label { display:block; font-size:11px; font-weight:700; color:#64748b; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.5px; }
-.form-group input { width:100%; padding:10px 12px; border:1.5px solid #e2e8f0; border-radius:6px; font-size:14px; font-family:inherit; color:#1e293b; transition:border-color 0.2s; }
-.form-group input:focus { outline:none; border-color:#00897b; }
-.btn-primary { width:100%; padding:12px; background:#00897b; color:white; border:none; border-radius:6px; font-size:14px; font-weight:700; cursor:pointer; transition:background 0.2s; }
-.btn-primary:hover { background:#00695c; }
-.btn-primary:disabled { background:#94a3b8; cursor:not-allowed; }
-.login-err { font-size:12px; margin-top:10px; text-align:center; min-height:18px; }
-.login-err.err { color:#dc2626; }
-.login-err.ok  { color:#16a34a; }
-.login-err.inf { color:#2563eb; }
-/* setup wizard */
-#setupScreen { min-height:100vh; display:none; align-items:center; justify-content:center; background:linear-gradient(135deg,#0d1b2e 0%,#1a2f52 100%); }
-.setup-card { background:white; border-radius:12px; padding:40px 36px; width:420px; box-shadow:0 25px 60px rgba(0,0,0,0.4); }
-.setup-card h2 { font-size:18px; font-weight:700; color:#0d1b2e; margin-bottom:6px; }
-.setup-card p { font-size:13px; color:#64748b; margin-bottom:20px; line-height:1.5; }
-.setup-step { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #f1f5f9; font-size:13px; }
-.setup-step .step-icon { font-size:18px; width:28px; text-align:center; }
-.step-status { margin-left:auto; font-weight:700; font-size:12px; }
-.step-status.pending { color:#94a3b8; }
-.step-status.running { color:#f59e0b; }
-.step-status.done { color:#16a34a; }
-.step-status.fail  { color:#dc2626; }
-#setupLog { margin-top:14px; font-size:12px; color:#64748b; min-height:40px; font-family:monospace; background:#f8fafc; padding:10px; border-radius:6px; }
-</style>
 
-<!-- LOADING SCREEN -->
-<div id="loadingScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0d1b2e;">
-  <div style="text-align:center;color:white;">
-    <div style="font-size:40px;margin-bottom:12px;">✚</div>
-    <div style="font-size:16px;font-weight:600;letter-spacing:1px;">Chandrawati PharmaSys</div>
-    <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:6px;">Connecting…</div>
-  </div>
-</div>
 
-<!-- SETUP WIZARD (first time only) -->
-<div id="setupScreen">
-  <div class="setup-card">
-    <h2>✚ First Time Setup</h2>
-    <p>Creating your system accounts in Firebase. This happens only once. Do not close this window.</p>
-    <div class="setup-step"><span class="step-icon">🔌</span> Connecting to Firebase <span class="step-status pending" id="st1">Pending</span></div>
-    <div class="setup-step"><span class="step-icon">👤</span> Creating Admin account <span class="step-status pending" id="st2">Pending</span></div>
-    <div class="setup-step"><span class="step-icon">💰</span> Creating Billing account <span class="step-status pending" id="st3">Pending</span></div>
-    <div class="setup-step"><span class="step-icon">💾</span> Saving user profiles <span class="step-status pending" id="st4">Pending</span></div>
-    <div id="setupLog">Waiting to start…</div>
-    <button class="btn-primary" id="setupBtn" onclick="runSetup()" style="margin-top:18px;">🚀 Initialize System</button>
-    <p style="font-size:11px;color:#94a3b8;margin-top:12px;text-align:center;margin-bottom:0">Default passwords: Admin@1234 &nbsp;|&nbsp; Billing@1234</p>
-  </div>
-</div>
 
 <!-- LOGIN SCREEN -->
-<div id="loginScreen" style="display:none;">
+<div id="loginScreen" style="display:flex;">
   <div class="login-card">
     <div class="login-logo">
       <span class="cross">✚</span>
@@ -778,22 +723,31 @@ tr:last-child td { border-bottom: none; }
           </div>
           <div class="card" id="firebaseConfigCard">
             <div class="card-header"><div class="card-title">🔥 Firebase Configuration</div><div style="color:var(--text2);font-size:12px">Replace with your project credentials</div></div>
-            <div class="alert-box success">✅ This app uses Firebase Auth — database locked to authenticated users only.</div>
+            <div class="alert-box info">Paste your Firebase Realtime Database credentials below. Data syncs across all devices. Login accounts are stored locally on each device.</div>
 
-            <div style="margin-bottom:10px;font-size:13px;font-weight:700;color:var(--text)">Step 1 — Enable Authentication</div>
-            <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Firebase Console → <b>Authentication</b> → Sign-in method → <b>Email/Password</b> → Enable → Save</div>
+            <div class="form-grid" style="margin-bottom:12px">
+              <div class="form-group-sm"><label>API Key *</label><input type="text" id="fb_apiKey" placeholder="AIzaSy..."></div>
+              <div class="form-group-sm"><label>Database URL *</label><input type="text" id="fb_dbUrl" placeholder="https://xxx-default-rtdb.firebaseio.com"></div>
+              <div class="form-group-sm"><label>Auth Domain (optional)</label><input type="text" id="fb_authDomain" placeholder="your-project.firebaseapp.com"></div>
+              <div class="form-group-sm"><label>Project ID (optional)</label><input type="text" id="fb_projectId" placeholder="your-project-id"></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+              <button class="btn btn-teal btn-sm" onclick="fbSaveConfig()">💾 Save & Connect</button>
+              <button class="btn btn-outline btn-sm" onclick="fbTestConnection()">🔌 Test Connection</button>
+              <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="fbClearConfig()">✕ Disconnect</button>
+            </div>
+            <div id="fbStatusBox" class="alert-box info" style="display:none"><span id="fbStatusText"></span></div>
 
-            <div style="margin-bottom:10px;font-size:13px;font-weight:700;color:var(--text)">Step 2 — Set Database Rules</div>
-            <div style="font-size:13px;color:var(--text2);margin-bottom:8px">Firebase Console → <b>Realtime Database</b> → Rules → paste below → Publish</div>
-            <pre style="background:#1e2a3a;color:#4db6ac;padding:14px;border-radius:6px;font-family:var(--mono);font-size:13px;overflow-x:auto;margin-bottom:14px">{
+            <div style="margin-top:14px;font-size:13px;font-weight:700;color:var(--text)">Firebase Database Rules</div>
+            <div style="font-size:13px;color:var(--text2);margin-bottom:8px">Firebase Console → Realtime Database → Rules → paste → Publish:</div>
+            <pre style="background:#1e2a3a;color:#4db6ac;padding:14px;border-radius:6px;font-family:var(--mono);font-size:13px;overflow-x:auto">{
   "rules": {
-    ".read":  "auth != null",
-    ".write": "auth != null"
+    ".read": true,
+    ".write": true
   }
 }</pre>
-            <div style="margin-bottom:10px;font-size:13px;font-weight:700;color:var(--text)">Step 3 — First Time Setup</div>
-            <div style="font-size:13px;color:var(--text2)">Open the file → the Setup Wizard appears automatically → click <b>Initialize System</b> → wait for all steps to complete → log in.</div>
-            <div class="alert-box info" style="margin-top:12px">Default credentials: <b>admin</b> / Admin@1234 &nbsp;·&nbsp; <b>billing</b> / Billing@1234 — change after first login.</div>
+            <div class="alert-box warn" style="margin-top:10px">⚠️ Test mode rules — anyone with the database URL can read/write. For internal hospital use on a private network this is acceptable. For public internet, restrict by IP in rules.</div>
+            <div class="alert-box success" style="margin-top:8px">✅ Default credentials: <b>admin</b> / Admin@1234 &nbsp;·&nbsp; <b>billing</b> / Billing@1234 — change via User Management after first login.</div>
           </div>
         </div>
 
@@ -1140,47 +1094,59 @@ tr:last-child td { border-bottom: none; }
 
 <!-- FIREBASE SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
 // ============================================================
 // 🔥 FIREBASE CONFIG — Replace with your project credentials
 // ============================================================
-const firebaseConfig = {
-  apiKey: "FIREBASE_API_KEY",
-  authDomain: "FIREBASE_AUTH_DOMAIN",
-  databaseURL: "https://FIREBASE_DB_URL",
-  projectId: "pharmacy-and-inventory",
-  storageBucket: "FIREBASE_STORAGE_BUCKET",
-  messagingSenderId: "FIREBASE_SENDER_ID",
-  appId: "1:FIREBASE_SENDER_ID:web:FIREBASE_APP_HASH"
-};
+// ============================================================
+// FIREBASE — config loaded from localStorage (entered via Settings)
+// No Firebase Auth — same pattern as HIS. DB in test mode.
+// ============================================================
+let db = null;
 
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db   = firebase.database();
-
-// Secondary app instance — creates users without signing out the logged-in admin
-let _secondaryApp  = null;
-let _secondaryAuth = null;
-function getSecondaryAuth() {
-  if (!_secondaryAuth) {
-    _secondaryApp  = firebase.initializeApp(firebaseConfig, 'secondary');
-    _secondaryAuth = _secondaryApp.auth();
-  }
-  return _secondaryAuth;
+function getStoredConfig() {
+  try { return JSON.parse(localStorage.getItem('pharma_fb_config') || 'null'); } catch(e) { return null; }
 }
 
-// Email domain: .app is a valid, Google-owned TLD — Firebase Auth accepts it
-const EMAIL_DOMAIN = '@pharmasys.app';
-const toEmail = u => u.trim().toLowerCase().replace(/[^a-z0-9._-]/g,'') + EMAIL_DOMAIN;
+function initFirebase(cfg) {
+  if (!cfg || !cfg.apiKey || !cfg.databaseURL) return false;
+  try {
+    // If already initialized, reuse
+    if (firebase.apps.length > 0) {
+      db = firebase.app().database();
+    } else {
+      firebase.initializeApp(cfg);
+      db = firebase.database();
+    }
+    return true;
+  } catch(e) {
+    console.error('Firebase init error:', e);
+    return false;
+  }
+}
 
-// Default accounts
-const DEFAULT_USERS = [
-  { username:'admin',   password:'Admin@1234',   name:'Administrator',  role:'admin',    dept:'Administration', protected:true  },
-  { username:'billing', password:'Billing@1234', name:'Billing Account', role:'accounts', dept:'Billing',       protected:false }
-];
+// Default accounts stored in localStorage — no DB needed for auth
+const ACCOUNTS_KEY = 'pharma_accounts';
+const SESSION_KEY  = 'pharma_session';
+
+function getAccounts() {
+  try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || 'null'); } catch(e) { return null; }
+}
+
+function saveAccounts(accounts) {
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+}
+
+function initDefaultAccounts() {
+  if (getAccounts()) return; // already seeded
+  const defaults = [
+    { username:'admin',   password:'Admin@1234',   name:'Administrator',  role:'admin',    dept:'Administration', protected:true  },
+    { username:'billing', password:'Billing@1234', name:'Billing Account', role:'accounts', dept:'Billing',       protected:false }
+  ];
+  saveAccounts(defaults);
+}
 
 // ============================================================
 // STATE
@@ -1206,202 +1172,89 @@ let dispItemCount = 0;
 let editingDrugKey = null;
 
 // ============================================================
-// AUTH — Firebase Auth (Email/Password) + Realtime DB profiles
+// AUTH — localStorage accounts, same pattern as HIS
 // ============================================================
 
-function setStatus(id, text, cls) {
-  const el = document.getElementById(id);
-  if (el) { el.textContent = text; el.className = 'step-status ' + cls; }
-}
-function setLog(msg) {
-  const el = document.getElementById('setupLog');
-  if (el) el.textContent = msg;
-}
-function showScreen(name) {
-  ['loadingScreen','setupScreen','loginScreen'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = (id === name) ? 'flex' : 'none';
-  });
-}
-function showErr(msg, cls) {
-  const el = document.getElementById('loginErr');
-  if (!el) return;
-  el.textContent = msg;
-  el.className = 'login-err ' + (cls || 'err');
-}
-
-// ── Create one user account (Auth + DB profile) ──
-async function createAccount(username, password, profile) {
-  const email = toEmail(username);
-  const sa = getSecondaryAuth();
-  // Try sign-in first — if succeeds, account already exists
-  try {
-    const cred = await sa.signInWithEmailAndPassword(email, password);
-    await sa.signOut();
-    // Ensure DB profile exists
-    const snap = await db.ref('users/' + cred.user.uid).get();
-    if (!snap.exists()) {
-      await db.ref('users/' + cred.user.uid).set(profile);
-    }
-    return { uid: cred.user.uid, existed: true };
-  } catch(signInErr) {
-    // Account does not exist — create it
-    if (['auth/user-not-found','auth/wrong-password','auth/invalid-credential',
-         'auth/invalid-login-credentials','auth/invalid-email'].includes(signInErr.code)) {
-      const cred = await sa.createUserWithEmailAndPassword(email, password);
-      const uid = cred.user.uid;
-      await sa.signOut();
-      // Now sign into primary auth temporarily to write profile
-      // (DB rules require auth != null on primary app)
-      const tempCred = await auth.signInWithEmailAndPassword(email, password);
-      await db.ref('users/' + uid).set(profile);
-      await auth.signOut();
-      return { uid, existed: false };
-    }
-    throw signInErr;
-  }
-}
-
-// ── First-time setup wizard ──
-async function runSetup() {
-  const btn = document.getElementById('setupBtn');
-  btn.disabled = true; btn.textContent = 'Setting up…';
-  
-  setStatus('st1','Running…','running'); setLog('Connecting to Firebase…');
-  try {
-    await db.ref('.info/connected').get();
-    setStatus('st1','✓ Done','done'); setLog('Firebase connected.');
-  } catch(e) {
-    setStatus('st1','✗ Failed','fail');
-    setLog('Firebase connection failed: ' + e.message + ' — Check your internet.');
-    btn.disabled = false; btn.textContent = '🔄 Retry';
-    return;
-  }
-
-  // Create admin
-  setStatus('st2','Running…','running'); setLog('Creating Admin account…');
-  try {
-    const adm = DEFAULT_USERS[0];
-    await createAccount(adm.username, adm.password, {
-      username: adm.username, name: adm.name, role: adm.role,
-      dept: adm.dept, protected: true, createdAt: new Date().toISOString()
-    });
-    setStatus('st2','✓ Done','done'); setLog('Admin account ready.');
-  } catch(e) {
-    setStatus('st2','✗ Failed','fail');
-    setLog('Admin error: ' + e.code + ' — ' + e.message);
-    btn.disabled = false; btn.textContent = '🔄 Retry';
-    return;
-  }
-
-  // Create billing
-  setStatus('st3','Running…','running'); setLog('Creating Billing account…');
-  try {
-    const bil = DEFAULT_USERS[1];
-    await createAccount(bil.username, bil.password, {
-      username: bil.username, name: bil.name, role: bil.role,
-      dept: bil.dept, protected: false, createdAt: new Date().toISOString()
-    });
-    setStatus('st3','✓ Done','done'); setLog('Billing account ready.');
-  } catch(e) {
-    setStatus('st3','✗ Failed','fail');
-    setLog('Billing error: ' + e.code + ' — ' + e.message);
-    btn.disabled = false; btn.textContent = '🔄 Retry';
-    return;
-  }
-
-  setStatus('st4','✓ Done','done');
-  setLog('✅ Setup complete! Redirecting to login…');
-  localStorage.setItem('pharmasys_setup_done', '1');
-  setTimeout(() => showScreen('loginScreen'), 1200);
-}
-
-// ── Auth state listener ──
-auth.onAuthStateChanged(async firebaseUser => {
-  if (firebaseUser) {
-    try {
-      const snap = await db.ref('users/' + firebaseUser.uid).get();
-      if (!snap.exists()) {
-        await auth.signOut();
-        showErr('Profile not found. Run setup again.');
-        showScreen('loginScreen');
-        return;
-      }
-      const profile = snap.val();
-      if (profile.disabled) {
-        await auth.signOut();
-        showErr('Account disabled. Contact admin.');
-        showScreen('loginScreen');
-        return;
-      }
-      currentUser     = firebaseUser;
-      currentUserData = { uid: firebaseUser.uid, ...profile };
-      const btn = document.getElementById('loginBtn');
-      if (btn) { btn.textContent = 'Sign In'; btn.disabled = false; }
-      showScreen(null); // hide all auth screens
-      document.getElementById('app').style.display = 'block';
-      initApp();
-    } catch(e) {
-      await auth.signOut();
-      showErr('DB error: ' + e.message + ' — Check Firebase DB rules (auth != null).');
-      showScreen('loginScreen');
-    }
-  } else {
-    currentUser = null; currentUserData = null;
-    document.getElementById('app').style.display = 'none';
-    // Only show login if setup is done
-    if (localStorage.getItem('pharmasys_setup_done')) {
-      showScreen('loginScreen');
-    }
-  }
-});
-
-// ── Page load ──
 window.addEventListener('DOMContentLoaded', () => {
-  // onAuthStateChanged handles everything
-  // Show loading screen; setup/login screens shown based on state
-  const setupDone = localStorage.getItem('pharmasys_setup_done');
-  if (!setupDone) {
-    // Small delay to allow onAuthStateChanged to fire first
-    setTimeout(() => {
-      if (!currentUser) showScreen('setupScreen');
-    }, 2000);
+  initDefaultAccounts();
+
+  // Auto-seed Firebase config if not already saved (pharmacy-and-inventory project)
+  if (!getStoredConfig()) {
+    const defaultCfg = {
+      apiKey:      'FIREBASE_API_KEY',
+      databaseURL: 'https://FIREBASE_DB_URL',
+      authDomain:  'FIREBASE_AUTH_DOMAIN',
+      projectId:   'pharmacy-and-inventory'
+    };
+    localStorage.setItem('pharma_fb_config', JSON.stringify(defaultCfg));
   }
-  // If already "setup done" but auth fires as null, onAuthStateChanged shows login
+
+  // Try to init Firebase with stored config
+  const cfg = getStoredConfig();
+  if (cfg) initFirebase(cfg);
+
+  // Restore session
+  try {
+    const session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+    if (session && session.username) {
+      // Verify account still exists
+      const accounts = getAccounts() || [];
+      const acct = accounts.find(a => a.username === session.username);
+      if (acct && !acct.disabled) {
+        currentUser     = { uid: session.username, username: session.username };
+        currentUserData = { ...acct };
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        if (db) { loadAllData(); loadDashboard(); buildReportButtons(); }
+        else     { initApp(); }
+        return;
+      }
+    }
+  } catch(e) {}
+
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
 });
 
-// ── Login ──
+function showErr(msg) {
+  const el = document.getElementById('loginErr');
+  if (el) { el.textContent = msg; el.className = 'login-err err'; }
+}
+
 async function doLogin() {
   const username = (document.getElementById('loginUsername').value || '').trim().toLowerCase();
   const pass     = (document.getElementById('loginPassword').value || '');
   const btn      = document.getElementById('loginBtn');
-  showErr('', '');
+  showErr('');
   if (!username) { showErr('Enter your username.'); return; }
   if (!pass)     { showErr('Enter your password.'); return; }
-  btn.textContent = 'Signing in…'; btn.disabled = true;
-  try {
-    await auth.signInWithEmailAndPassword(toEmail(username), pass);
-    // onAuthStateChanged takes over from here
-  } catch(e) {
-    btn.textContent = 'Sign In'; btn.disabled = false;
-    const code = e.code || '';
-    if (code.includes('user-not-found') || code.includes('wrong-password') || code.includes('invalid-credential') || code.includes('invalid-login')) {
-      showErr('Invalid username or password.');
-    } else if (code.includes('too-many-requests')) {
-      showErr('Too many attempts. Wait a few minutes.');
-    } else if (code.includes('network')) {
-      showErr('No internet connection.');
-    } else {
-      showErr('Error: ' + e.message);
-    }
-    console.error('Login:', e.code, e.message);
-  }
+
+  const accounts = getAccounts() || [];
+  const acct = accounts.find(a => a.username === username);
+  if (!acct)            { showErr('Invalid username or password.'); return; }
+  if (acct.disabled)    { showErr('Account disabled. Contact admin.'); return; }
+  if (acct.password !== pass) { showErr('Invalid username or password.'); return; }
+
+  // Save session
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ ...acct }));
+  currentUser     = { uid: username, username };
+  currentUserData = { ...acct };
+
+  // Init Firebase if config exists
+  const cfg = getStoredConfig();
+  if (cfg) initFirebase(cfg);
+
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  initApp();
 }
 
-// ── Logout ──
 async function doLogout() {
-  try { await logAudit('auth','LOGOUT', currentUserData?.username || '',''); } catch(e) {}
-  await auth.signOut();
+  try { await logAudit('auth', 'LOGOUT', currentUserData?.username || '', ''); } catch(e) {}
+  localStorage.removeItem(SESSION_KEY);
+  currentUser = null; currentUserData = null;
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
   document.getElementById('loginUsername').value = '';
   document.getElementById('loginPassword').value = '';
 }
@@ -1409,6 +1262,8 @@ async function doLogout() {
 // INIT APP
 // ============================================================
 function initApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
   const name = currentUserData.name || currentUserData.username || 'User';
   document.getElementById('sidebarName').textContent = name;
   document.getElementById('sidebarRole').textContent = (currentUserData.role || 'user').replace('_',' ').toUpperCase();
@@ -1422,6 +1277,7 @@ function initApp() {
 }
 
 function loadAllData() {
+  if (!db) { console.warn('Firebase not configured — data not loaded'); return; }
   db.ref('drugs').on('value', snap => {
     allDrugs = [];
     snap.forEach(c => allDrugs.push({key: c.key, ...c.val()}));
@@ -1464,16 +1320,15 @@ function loadAllData() {
   db.ref('rate_contracts').on('value', snap => {
     allRates = []; snap.forEach(c => allRates.push({key: c.key, ...c.val()})); renderRates();
   });
-  db.ref('users').on('value', snap => {
-    let users = []; snap.forEach(c => users.push({key: c.key, username: c.key, ...c.val()})); renderUsers(users);
-  });
+  // Users come from localStorage — refresh on navigate
+  refreshUsersPanel();
 }
 
 // ============================================================
 // AUDIT TRAIL
 // ============================================================
 async function logAudit(module, action, recordId, details) {
-  if (!db || !currentUser) return; // skip if not authenticated
+  if (!db || !currentUser) return; // skip if Firebase not configured or not logged in
   try {
     const entry = {
       ts: new Date().toISOString(),
@@ -1507,6 +1362,8 @@ function navigate(module) {
     if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'" + module + "'")) n.classList.add('active');
   });
   document.getElementById('topbarTitle').textContent = moduleTitles[module] || module;
+  if (module === 'settings') loadFbConfigFields();
+  if (module === 'users') refreshUsersPanel();
 }
 
 function switchTab(moduleKey, tabKey) {
@@ -1548,6 +1405,10 @@ function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 // DASHBOARD
 // ============================================================
 function loadDashboard() {
+  if (!db) { 
+    document.getElementById('dashStats').innerHTML = '<div class="alert-box warn" style="grid-column:1/-1">⚠️ Firebase not configured. Go to Settings → paste your Firebase credentials → Save & Connect.</div>';
+    return;
+  }
   const today = new Date();
   const expired = allStock.filter(s => s.expiry && new Date(s.expiry) < today);
   const near90 = allStock.filter(s => { if (!s.expiry) return false; const d = (new Date(s.expiry) - today) / 86400000; return d >= 0 && d <= 90; });
@@ -2428,84 +2289,78 @@ function filterAudit() {
 function renderUsers(users) {
   const tb = document.getElementById('userTbody');
   const isAdmin = currentUserData && currentUserData.role === 'admin';
-  // Show/hide admin controls
-  const addBtn = document.getElementById('addUserBtn');
+  const addBtn    = document.getElementById('addUserBtn');
   const adminNote = document.getElementById('usersAdminNote');
-  if (addBtn) addBtn.style.display = isAdmin ? '' : 'none';
+  if (addBtn)    addBtn.style.display    = isAdmin ? '' : 'none';
   if (adminNote) adminNote.style.display = isAdmin ? 'flex' : 'none';
-  if (!users.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">No users</td></tr>'; return; }
+  if (!users || !users.length) {
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">No accounts</td></tr>';
+    return;
+  }
   const roleLabels = { admin:'Admin', pharmacist:'Pharmacist', store_manager:'Store Manager', nurse:'Nurse', doctor:'Doctor', purchase:'Purchase Officer', accounts:'Billing / Accounts', quality:'Quality Manager' };
-  const roleBadge = { admin:'badge-red', pharmacist:'badge-teal', store_manager:'badge-blue', nurse:'badge-green', doctor:'badge-purple', purchase:'badge-amber', accounts:'badge-navy', quality:'badge-gray' };
-  tb.innerHTML = users.map(u => `<tr style="${u.disabled ? 'opacity:0.5' : ''}">
-    <td style="font-family:var(--mono);font-weight:700">${u.username||'—'}</td>
-    <td><b>${u.name||'—'}</b>${u.disabled ? ' <span class="badge badge-red">Disabled</span>' : ''}</td>
+  const roleBadge  = { admin:'badge-red', pharmacist:'badge-teal', store_manager:'badge-blue', nurse:'badge-green', doctor:'badge-purple', purchase:'badge-amber', accounts:'badge-navy', quality:'badge-gray' };
+  tb.innerHTML = users.map(u => `<tr style="${u.disabled?'opacity:0.5':''}">
+    <td style="font-family:var(--mono);font-weight:700">${u.username}</td>
+    <td><b>${u.name||'—'}</b>${u.disabled?'<span class="badge badge-red" style="margin-left:6px">Disabled</span>':''}</td>
     <td><span class="badge ${roleBadge[u.role]||'badge-gray'}">${roleLabels[u.role]||u.role}</span></td>
     <td>${u.dept||'—'}</td>
-    <td style="font-size:12px;color:var(--text3)">${u.lastLogin ? new Date(u.lastLogin).toLocaleString('en-IN') : 'Never'}</td>
+    <td style="font-size:12px;color:var(--text3)">${u.lastLogin?new Date(u.lastLogin).toLocaleString('en-IN'):'Never'}</td>
     <td>${isAdmin && u.username !== 'admin' && !u.protected
       ? u.disabled
-        ? `<button class="btn btn-teal btn-sm" onclick="enableUser('${u.key}','${u.name||u.username}')">✓ Enable</button>`
-        : `<button class="btn btn-red btn-sm" onclick="deleteUser('${u.key}','${u.username}','${u.name||u.username}')">⛔ Disable</button>`
+        ? `<button class="btn btn-teal btn-sm" onclick="enableUser('${u.username}')">✓ Enable</button>`
+        : `<button class="btn btn-red btn-sm" onclick="deleteUser('${u.username}','${u.name||u.username}')">⛔ Disable</button>`
       : u.username === 'admin' ? '<span style="color:var(--text3);font-size:12px">Protected</span>' : ''}</td>
   </tr>`).join('');
 }
 
+function refreshUsersPanel() {
+  const accounts = getAccounts() || [];
+  renderUsers(accounts);
+}
+
 async function createUser() {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Admin access required', 'error'); return; }
-  const username = document.getElementById('uUsername').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
-  const name     = document.getElementById('uName').value.trim();
-  const pass     = document.getElementById('uPass').value;
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Admin access required','error'); return; }
+  const username = (document.getElementById('uUsername').value||'').trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
+  const name     = (document.getElementById('uName').value||'').trim();
+  const pass     = (document.getElementById('uPass').value||'');
   const role     = document.getElementById('uRole').value;
-  const dept     = document.getElementById('uDept').value.trim();
-  if (!username || !name || !pass) { toast('Username, name and password are required', 'error'); return; }
-  if (pass.length < 6)   { toast('Password must be at least 6 characters', 'error'); return; }
-  if (username.length < 3) { toast('Username must be at least 3 characters', 'error'); return; }
-  const btn = document.querySelector('#modalUser .btn-teal');
-  btn.textContent = 'Creating…'; btn.disabled = true;
-  try {
-    // Use secondaryAuth so admin stays logged in
-    const cred = await getSecondaryAuth().createUserWithEmailAndPassword(toEmail(username), pass);
-    // secondaryAuth signed in — admin primary auth still active, db write works
-    const profile = {
-      username, name, role, dept, protected: false,
-      createdAt: new Date().toISOString(), createdBy: currentUserData.username
-    };
-    // Write profile using primary auth (admin is signed in)
-    await db.ref('users/' + cred.user.uid).set(profile);
-    await getSecondaryAuth().signOut();
-    await logAudit('users', 'CREATE', username, { name, role });
-    toast('User created: ' + name + ' (' + username + ')', 'success');
-    closeModal('modalUser');
-    ['uUsername','uName','uPass','uDept'].forEach(id => document.getElementById(id).value = '');
-  } catch(e) {
-    if (e.code === 'auth/email-already-in-use') {
-      toast('Username already exists: ' + username, 'error');
-    } else {
-      toast('Failed to create user: ' + e.message, 'error');
-    }
-    console.error(e);
-  } finally {
-    btn.textContent = '✅ Create User'; btn.disabled = false;
-  }
+  const dept     = (document.getElementById('uDept').value||'').trim();
+  if (!username || !name || !pass) { toast('Username, name and password are required','error'); return; }
+  if (pass.length < 6)   { toast('Password minimum 6 characters','error'); return; }
+  if (username.length < 3) { toast('Username minimum 3 characters','error'); return; }
+  const accounts = getAccounts() || [];
+  if (accounts.find(a => a.username === username)) { toast('Username already exists: ' + username,'error'); return; }
+  const newAcct = { username, name, role, dept, password: pass, protected: false, createdAt: new Date().toISOString(), createdBy: currentUserData.username };
+  accounts.push(newAcct);
+  saveAccounts(accounts);
+  await logAudit('users', 'CREATE', username, { name, role });
+  toast('User created: ' + name + ' (' + username + ')','success');
+  closeModal('modalUser');
+  ['uUsername','uName','uPass','uDept'].forEach(id => { document.getElementById(id).value = ''; });
+  refreshUsersPanel();
 }
 
-async function deleteUser(uid, username, name) {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Admin access required', 'error'); return; }
-  if (username === 'admin') { toast('Cannot delete the admin account', 'error'); return; }
-  if (uid === currentUser.uid) { toast('Cannot delete your own account', 'error'); return; }
-  if (!confirm('Disable user "' + name + '" (' + username + ')? They will not be able to log in.')) return;
-  // Mark disabled in DB — Firebase Auth user deletion requires Admin SDK (server-side)
-  // Disabling in DB is sufficient: login checks disabled flag
-  await db.ref('users/' + uid).update({ disabled: true, disabledBy: currentUserData.username, disabledAt: new Date().toISOString() });
+async function deleteUser(username, name) {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Admin access required','error'); return; }
+  if (username === 'admin') { toast('Cannot disable the admin account','error'); return; }
+  if (username === currentUserData.username) { toast('Cannot disable your own account','error'); return; }
+  if (!confirm('Disable user "' + name + '"? They will not be able to log in.')) return;
+  const accounts = getAccounts() || [];
+  const idx = accounts.findIndex(a => a.username === username);
+  if (idx !== -1) { accounts[idx].disabled = true; accounts[idx].disabledAt = new Date().toISOString(); saveAccounts(accounts); }
   await logAudit('users', 'DISABLE', username, { name, by: currentUserData.username });
-  toast('User disabled: ' + name, 'warn');
+  toast('User disabled: ' + name,'warn');
+  refreshUsersPanel();
 }
 
-async function enableUser(uid, name) {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Admin access required', 'error'); return; }
-  await db.ref('users/' + uid).update({ disabled: false, disabledBy: null, disabledAt: null });
-  await logAudit('users', 'ENABLE', uid, { name });
-  toast('User enabled: ' + name, 'success');
+async function enableUser(username) {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Admin access required','error'); return; }
+  const accounts = getAccounts() || [];
+  const idx = accounts.findIndex(a => a.username === username);
+  if (idx !== -1) { accounts[idx].disabled = false; delete accounts[idx].disabledAt; saveAccounts(accounts); }
+  await logAudit('users', 'ENABLE', username, {});
+  toast('User enabled: ' + username,'success');
+  refreshUsersPanel();
 }
 
 async function changePassword() {
@@ -2516,35 +2371,24 @@ async function changePassword() {
   if (!username || !newPass)  { toast('Enter username and new password','error'); return; }
   if (newPass !== confPass)   { toast('Passwords do not match','error'); return; }
   if (newPass.length < 6)     { toast('Minimum 6 characters','error'); return; }
-  // Changing own password
+  const accounts = getAccounts() || [];
+  const idx = accounts.findIndex(a => a.username === username);
+  if (idx === -1) { toast('User not found: ' + username,'error'); return; }
+  accounts[idx].password = newPass;
+  accounts[idx].passwordChangedAt = new Date().toISOString();
+  accounts[idx].passwordChangedBy = currentUserData.username;
+  saveAccounts(accounts);
+  // Update session if changing own password
   if (username === currentUserData.username) {
-    try {
-      await currentUser.updatePassword(newPass);
-      toast('Your password updated successfully','success');
-      ['cpUsername','cpNewPass','cpConfPass'].forEach(id => { document.getElementById(id).value=''; });
-    } catch(e) {
-      if (e.code === 'auth/requires-recent-login') toast('Log out and back in, then change password.','warn');
-      else toast('Error: '+e.message,'error');
-    }
-    return;
+    const session = JSON.parse(localStorage.getItem(SESSION_KEY)||'null');
+    if (session) { session.password = newPass; localStorage.setItem(SESSION_KEY, JSON.stringify(session)); }
   }
-  // Changing another user's password — need their current password
-  const oldPass = prompt('Enter the CURRENT password for "'+username+'" to verify identity:');
-  if (!oldPass) return;
-  const sa = getSecondaryAuth();
-  try {
-    const cred = await sa.signInWithEmailAndPassword(toEmail(username), oldPass);
-    await cred.user.updatePassword(newPass);
-    await sa.signOut();
-    await logAudit('users','CHANGE_PASSWORD', username, { by: currentUserData.username });
-    toast('Password changed for: '+username,'success');
-    ['cpUsername','cpNewPass','cpConfPass'].forEach(id => { document.getElementById(id).value=''; });
-  } catch(e) {
-    await sa.signOut().catch(()=>{});
-    if (e.code==='auth/wrong-password'||e.code==='auth/invalid-credential') toast('Current password incorrect','error');
-    else toast('Error: '+e.message,'error');
-  }
+  await logAudit('users', 'CHANGE_PASSWORD', username, { by: currentUserData.username });
+  toast('Password changed for: ' + username,'success');
+  ['cpUsername','cpNewPass','cpConfPass'].forEach(id => { document.getElementById(id).value = ''; });
 }
+
+
 // ============================================================
 // REPORTS
 // ============================================================
@@ -2784,6 +2628,70 @@ document.addEventListener('keydown', function(e) {
     e.preventDefault();
   }
 });
+
+
+// ============================================================
+// FIREBASE CONFIG — Save/Load/Test (matches HIS pattern)
+// ============================================================
+function fbSaveConfig() {
+  const apiKey     = (document.getElementById('fb_apiKey')||{value:''}).value.trim();
+  const databaseURL= (document.getElementById('fb_dbUrl')||{value:''}).value.trim();
+  const authDomain = (document.getElementById('fb_authDomain')||{value:''}).value.trim();
+  const projectId  = (document.getElementById('fb_projectId')||{value:''}).value.trim();
+  if (!apiKey || !databaseURL) { toast('API Key and Database URL are required','error'); return; }
+  const cfg = { apiKey, databaseURL, authDomain: authDomain||undefined, projectId: projectId||undefined };
+  // Remove undefined
+  Object.keys(cfg).forEach(k => cfg[k] === undefined && delete cfg[k]);
+  localStorage.setItem('pharma_fb_config', JSON.stringify(cfg));
+  const ok = initFirebase(cfg);
+  const box = document.getElementById('fbStatusBox');
+  const txt = document.getElementById('fbStatusText');
+  if (box) box.style.display = 'flex';
+  if (ok) {
+    if (txt) txt.textContent = '✅ Connected to Firebase Realtime Database';
+    toast('Firebase connected — loading data…','success');
+    loadAllData(); loadDashboard();
+  } else {
+    if (txt) txt.textContent = '❌ Connection failed — check credentials';
+    toast('Firebase connection failed','error');
+  }
+}
+
+async function fbTestConnection() {
+  if (!db) { toast('Configure Firebase first','warn'); return; }
+  try {
+    await db.ref('.info/connected').get();
+    toast('✅ Firebase connected successfully','success');
+  } catch(e) {
+    toast('❌ Connection failed: ' + e.message,'error');
+  }
+}
+
+function fbClearConfig() {
+  if (!confirm('Disconnect Firebase? Data will no longer sync.')) return;
+  localStorage.removeItem('pharma_fb_config');
+  db = null;
+  const box = document.getElementById('fbStatusBox');
+  const txt = document.getElementById('fbStatusText');
+  if (box) box.style.display = 'none';
+  if (txt) txt.textContent = '';
+  toast('Firebase disconnected','warn');
+}
+
+// Pre-fill Firebase config fields when navigating to settings
+function loadFbConfigFields() {
+  const cfg = getStoredConfig();
+  if (!cfg) return;
+  const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+  set('fb_apiKey', cfg.apiKey);
+  set('fb_dbUrl', cfg.databaseURL);
+  set('fb_authDomain', cfg.authDomain);
+  set('fb_projectId', cfg.projectId);
+  const box = document.getElementById('fbStatusBox');
+  const txt = document.getElementById('fbStatusText');
+  if (box) box.style.display = 'flex';
+  if (txt) txt.textContent = db ? '✅ Connected' : '⚪ Config loaded — not connected';
+}
 
 </script>
 </body>
