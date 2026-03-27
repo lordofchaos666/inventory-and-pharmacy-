@@ -720,16 +720,15 @@ tr:last-child td { border-bottom: none; }
           </div>
           <div class="card" id="firebaseConfigCard">
             <div class="card-header"><div class="card-title">🔥 Firebase Configuration</div><div style="color:var(--text2);font-size:12px">Replace with your project credentials</div></div>
-            <div class="alert-box info">Update firebaseConfig in the &lt;script&gt; section of this file with your Firebase project settings from the Firebase Console.</div>
-            <pre style="background:var(--bg);padding:14px;border-radius:6px;font-family:var(--mono);font-size:12px;overflow-x:auto">const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};</pre>
+            <div class="alert-box danger">⚠️ <b>REQUIRED:</b> Set your Firebase Realtime Database rules to open (below). This app uses its own login system — Firebase Auth is not used.</div>
+            <div class="card-subtitle" style="margin-bottom:8px;font-weight:600">Firebase Console → Realtime Database → Rules → Paste this → Publish:</div>
+            <pre style="background:#1e2a3a;color:#4db6ac;padding:14px;border-radius:6px;font-family:var(--mono);font-size:13px;overflow-x:auto">{
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}</pre>
+            <div class="alert-box info" style="margin-top:10px">🔒 Security is enforced by the app login (SHA-256 hashed passwords). Only logged-in users can see the app.</div>
           </div>
         </div>
 
@@ -1082,15 +1081,15 @@ tr:last-child td { border-bottom: none; }
 // ============================================================
 // 🔥 FIREBASE CONFIG — Replace with your project credentials
 // ============================================================
+// NOTE: authDomain & measurementId intentionally omitted — we use custom DB auth,
+// not Firebase Auth. Database rules must be set to open (see Settings tab).
 const firebaseConfig = {
   apiKey: "FIREBASE_API_KEY",
-  authDomain: "FIREBASE_AUTH_DOMAIN",
   databaseURL: "https://FIREBASE_DB_URL",
   projectId: "pharmacy-and-inventory",
   storageBucket: "FIREBASE_STORAGE_BUCKET",
   messagingSenderId: "FIREBASE_SENDER_ID",
-  appId: "1:FIREBASE_SENDER_ID:web:FIREBASE_APP_HASH",
-  measurementId: "G-R86XJDCBH0"
+  appId: "1:FIREBASE_SENDER_ID:web:FIREBASE_APP_HASH"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
@@ -1150,7 +1149,15 @@ async function initDefaultUsers() {
 
 // On page load - check session
 window.addEventListener('DOMContentLoaded', async () => {
-  await initDefaultUsers();
+  try {
+    await initDefaultUsers();
+  } catch(e) {
+    // Most likely cause: DB rules not set to open
+    if (e.message && (e.message.includes('permission') || e.message.includes('auth'))) {
+      document.getElementById('loginErr').textContent =
+        '⚠️ Database rules not configured. Go to Firebase Console → Realtime Database → Rules → set .read and .write to true.';
+    }
+  }
   const session = sessionStorage.getItem('pharma_session');
   if (session) {
     try {
@@ -1186,8 +1193,15 @@ async function doLogin() {
     await db.ref('users/' + username).update({ lastLogin: new Date().toISOString() });
     initApp();
   } catch(e) {
-    errEl.textContent = 'Login error. Check connection.';
-    console.error(e);
+    // Show specific error — never show Firebase auth errors since we don't use Firebase Auth
+    if (e.message && e.message.includes('auth/')) {
+      errEl.textContent = 'Database not configured. Set Realtime Database rules to open in Firebase Console.';
+    } else if (e.message && e.message.includes('permission')) {
+      errEl.textContent = 'Database access denied. Set rules to allow read/write in Firebase Console → Realtime Database → Rules.';
+    } else {
+      errEl.textContent = 'Login error: ' + (e.message || 'Check internet connection.');
+    }
+    console.error('Login error:', e);
   }
 }
 
@@ -2487,6 +2501,53 @@ window.seedDemoData = async function() {
   await db.ref('stock').push({ drugName:'Dobutamine 250mg Vial', batch:'DOB-2024-03', expiry:'2025-06-01', qty:3, unit:'Vial', purchaseRate:180, mrp:250, store:'ICU', reorderLevel:5, updatedAt:new Date().toISOString() });
   toast('Demo data seeded!', 'success');
 };
+
+// ============================================================
+// ENTER KEY NAVIGATION — Global handler for all inputs
+// ============================================================
+// Moves focus to next input/select/textarea/button in same
+// modal or form on Enter. On the last field calls submit fn.
+// Configured per-modal via data-enter-submit on containers.
+
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Enter') return;
+  const tag = e.target.tagName;
+  // Only handle input and select; not textarea (Enter = newline)
+  if (tag === 'TEXTAREA') return;
+  if (tag !== 'INPUT' && tag !== 'SELECT') return;
+  e.preventDefault();
+
+  // Find the enclosing modal or form context
+  const container = e.target.closest('.modal-box, .login-card, .card');
+  if (!container) return;
+
+  // All focusable fields in this container
+  const fields = Array.from(container.querySelectorAll(
+    'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
+  ));
+  const idx = fields.indexOf(e.target);
+
+  if (idx >= 0 && idx < fields.length - 1) {
+    // Move to next field
+    fields[idx + 1].focus();
+    if (fields[idx + 1].tagName === 'INPUT') fields[idx + 1].select();
+  } else {
+    // Last field — trigger the submit button in this context
+    const submitBtn = container.querySelector(
+      '.modal-footer .btn-teal, .btn-primary, [data-submit]'
+    );
+    if (submitBtn) submitBtn.click();
+  }
+}, true);
+
+// Search inputs — Enter triggers the filter immediately (already live via oninput)
+// but also prevents form submit bubbling
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && e.target.classList.contains('search-input')) {
+    e.preventDefault();
+  }
+});
+
 </script>
 </body>
 </html>
