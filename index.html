@@ -267,12 +267,12 @@ tr:last-child td { border-bottom: none; }
       <p>NABH Pharmacy Management System</p>
     </div>
     <div class="form-group">
-      <label>Email / Username</label>
-      <input type="email" id="loginEmail" placeholder="user@chandrawati.in">
+      <label>Username</label>
+      <input type="text" id="loginUsername" placeholder="admin" autocomplete="username">
     </div>
     <div class="form-group">
       <label>Password</label>
-      <input type="password" id="loginPassword" placeholder="••••••••">
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <button class="btn-primary" onclick="doLogin()">Sign In</button>
     <p class="login-err" id="loginErr"></p>
@@ -680,15 +680,25 @@ tr:last-child td { border-bottom: none; }
         <div id="mod-users" class="module">
           <div class="card">
             <div class="card-header">
-              <div><div class="card-title">👥 User Management</div></div>
-              <button class="btn btn-teal btn-sm" onclick="openModal('modalUser')">+ Add User</button>
+              <div><div class="card-title">👥 User Management</div><div class="card-subtitle">Admin only — manage system accounts</div></div>
+              <button class="btn btn-teal btn-sm" id="addUserBtn" onclick="openModal('modalUser')">+ Add User</button>
             </div>
+            <div class="alert-box info" id="usersAdminNote" style="display:none">ℹ️ Only admins can add or delete users. The <b>admin</b> account cannot be deleted.</div>
             <div class="tbl-wrap">
               <table>
-                <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Status</th><th>Last Login</th><th>Actions</th></tr></thead>
-                <tbody id="userTbody"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Loading...</td></tr></tbody>
+                <thead><tr><th>Username</th><th>Full Name</th><th>Role</th><th>Department</th><th>Last Login</th><th>Actions</th></tr></thead>
+                <tbody id="userTbody"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Loading...</td></tr></tbody>
               </table>
             </div>
+          </div>
+          <div class="card" style="margin-top:0">
+            <div class="card-header"><div class="card-title">🔑 Change Password</div></div>
+            <div class="form-grid">
+              <div class="form-group-sm"><label>Username</label><input type="text" id="cpUsername" placeholder="Username to change"></div>
+              <div class="form-group-sm"><label>New Password *</label><input type="password" id="cpNewPass" placeholder="Min 6 characters"></div>
+              <div class="form-group-sm"><label>Confirm Password *</label><input type="password" id="cpConfPass" placeholder="Repeat password"></div>
+            </div>
+            <div style="margin-top:12px"><button class="btn btn-amber" onclick="changePassword()">🔑 Change Password</button></div>
           </div>
         </div>
 
@@ -1014,16 +1024,26 @@ tr:last-child td { border-bottom: none; }
 <!-- USER MODAL -->
 <div class="modal-overlay hidden" id="modalUser">
   <div class="modal-box">
-    <div class="modal-header"><h3>👤 Add User</h3><button class="modal-close" onclick="closeModal('modalUser')">✕</button></div>
+    <div class="modal-header"><h3>👤 Add New User</h3><button class="modal-close" onclick="closeModal('modalUser')">✕</button></div>
     <div class="modal-body">
+      <div class="alert-box info">Username must be lowercase, no spaces. Example: <b>drritik</b>, <b>nurse1</b></div>
       <div class="form-grid">
-        <div class="form-group-sm"><label>Full Name *</label><input type="text" id="uName"></div>
-        <div class="form-group-sm"><label>Email *</label><input type="email" id="uEmail"></div>
-        <div class="form-group-sm"><label>Password *</label><input type="password" id="uPass"></div>
+        <div class="form-group-sm"><label>Username * (login ID)</label><input type="text" id="uUsername" placeholder="e.g. drritik" style="font-family:var(--mono)"></div>
+        <div class="form-group-sm"><label>Full Name *</label><input type="text" id="uName" placeholder="e.g. Dr Ritik Chandra"></div>
+        <div class="form-group-sm"><label>Password *</label><input type="password" id="uPass" placeholder="Min 6 characters"></div>
         <div class="form-group-sm"><label>Role *</label>
-          <select id="uRole"><option value="pharmacist">Pharmacist</option><option value="store_manager">Store Manager</option><option value="nurse">Nurse</option><option value="doctor">Doctor</option><option value="purchase">Purchase Officer</option><option value="accounts">Accounts</option><option value="quality">Quality Manager</option><option value="admin">Admin</option></select>
+          <select id="uRole">
+            <option value="pharmacist">Pharmacist</option>
+            <option value="store_manager">Store Manager</option>
+            <option value="nurse">Nurse</option>
+            <option value="doctor">Doctor</option>
+            <option value="purchase">Purchase Officer</option>
+            <option value="accounts">Billing / Accounts</option>
+            <option value="quality">Quality Manager</option>
+            <option value="admin">Admin</option>
+          </select>
         </div>
-        <div class="form-group-sm"><label>Department</label><input type="text" id="uDept" placeholder="e.g. ICU, OPD"></div>
+        <div class="form-group-sm"><label>Department</label><input type="text" id="uDept" placeholder="e.g. ICU, OPD, Pharmacy"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1056,7 +1076,6 @@ tr:last-child td { border-bottom: none; }
 
 <!-- FIREBASE SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
@@ -1064,16 +1083,16 @@ tr:last-child td { border-bottom: none; }
 // 🔥 FIREBASE CONFIG — Replace with your project credentials
 // ============================================================
 const firebaseConfig = {
-  apiKey: "REDACTED_HIS_KEY",
-  authDomain: "chandrawati-his.firebaseapp.com",
-  databaseURL: "https://chandrawati-his-default-rtdb.firebaseio.com",
-  projectId: "chandrawati-his",
-  storageBucket: "chandrawati-his.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:0000000000000000"
+  apiKey: "FIREBASE_API_KEY",
+  authDomain: "FIREBASE_AUTH_DOMAIN",
+  databaseURL: "https://FIREBASE_DB_URL",
+  projectId: "pharmacy-and-inventory",
+  storageBucket: "FIREBASE_STORAGE_BUCKET",
+  messagingSenderId: "FIREBASE_SENDER_ID",
+  appId: "1:FIREBASE_SENDER_ID:web:FIREBASE_APP_HASH",
+  measurementId: "G-R86XJDCBH0"
 };
 firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
 const db = firebase.database();
 
 // ============================================================
@@ -1100,35 +1119,86 @@ let dispItemCount = 0;
 let editingDrugKey = null;
 
 // ============================================================
-// AUTH
+// AUTH — Custom DB-based (no Firebase Auth)
 // ============================================================
-auth.onAuthStateChanged(async user => {
-  if (user) {
-    currentUser = user;
-    const snap = await db.ref('users/' + user.uid).get();
-    currentUserData = snap.val() || { name: user.email, role: 'pharmacist' };
-    initApp();
-  } else {
-    document.getElementById('loginScreen').style.display = 'flex';
-    document.getElementById('app').style.display = 'none';
+
+async function hashPassword(password) {
+  const msgBuffer = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function initDefaultUsers() {
+  // Check if users already seeded
+  const snap = await db.ref('users').get();
+  if (snap.exists()) return;
+  // Seed default admin and billing accounts
+  const adminHash = await hashPassword('Admin@123');
+  const billingHash = await hashPassword('Billing@123');
+  await db.ref('users/admin').set({
+    username: 'admin', name: 'Administrator', role: 'admin',
+    dept: 'Administration', passwordHash: adminHash,
+    createdAt: new Date().toISOString(), protected: true
+  });
+  await db.ref('users/billing').set({
+    username: 'billing', name: 'Billing Account', role: 'accounts',
+    dept: 'Billing', passwordHash: billingHash,
+    createdAt: new Date().toISOString(), protected: false
+  });
+}
+
+// On page load - check session
+window.addEventListener('DOMContentLoaded', async () => {
+  await initDefaultUsers();
+  const session = sessionStorage.getItem('pharma_session');
+  if (session) {
+    try {
+      const userData = JSON.parse(session);
+      currentUser = { uid: userData.username, username: userData.username };
+      currentUserData = userData;
+      initApp();
+      return;
+    } catch(e) { sessionStorage.removeItem('pharma_session'); }
   }
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
 });
 
 async function doLogin() {
-  const email = document.getElementById('loginEmail').value.trim();
+  const username = document.getElementById('loginUsername').value.trim().toLowerCase();
   const pass = document.getElementById('loginPassword').value;
-  document.getElementById('loginErr').textContent = '';
-  if (!email || !pass) { document.getElementById('loginErr').textContent = 'Enter email and password.'; return; }
+  const errEl = document.getElementById('loginErr');
+  errEl.textContent = '';
+  if (!username || !pass) { errEl.textContent = 'Enter username and password.'; return; }
   try {
-    await auth.signInWithEmailAndPassword(email, pass);
+    const snap = await db.ref('users/' + username).get();
+    if (!snap.exists()) { errEl.textContent = 'Invalid username or password.'; return; }
+    const userData = snap.val();
+    const inputHash = await hashPassword(pass);
+    if (inputHash !== userData.passwordHash) { errEl.textContent = 'Invalid username or password.'; return; }
+    // Store session
+    const session = { ...userData, username };
+    sessionStorage.setItem('pharma_session', JSON.stringify(session));
+    currentUser = { uid: username, username };
+    currentUserData = session;
+    // Update last login
+    await db.ref('users/' + username).update({ lastLogin: new Date().toISOString() });
+    initApp();
   } catch(e) {
-    document.getElementById('loginErr').textContent = e.message;
+    errEl.textContent = 'Login error. Check connection.';
+    console.error(e);
   }
 }
 
 async function doLogout() {
-  await logAudit('auth', 'LOGOUT', '', '');
-  auth.signOut();
+  await logAudit('auth', 'LOGOUT', currentUser.username, '');
+  sessionStorage.removeItem('pharma_session');
+  currentUser = null; currentUserData = null;
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginUsername').value = '';
+  document.getElementById('loginPassword').value = '';
 }
 
 // ============================================================
@@ -1137,7 +1207,7 @@ async function doLogout() {
 function initApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  const name = currentUserData.name || currentUser.email;
+  const name = currentUserData.name || currentUserData.username || 'User';
   document.getElementById('sidebarName').textContent = name;
   document.getElementById('sidebarRole').textContent = (currentUserData.role || 'user').replace('_',' ').toUpperCase();
   document.getElementById('avatarInitials').textContent = name.charAt(0).toUpperCase();
@@ -1193,7 +1263,7 @@ function loadAllData() {
     allRates = []; snap.forEach(c => allRates.push({key: c.key, ...c.val()})); renderRates();
   });
   db.ref('users').on('value', snap => {
-    let users = []; snap.forEach(c => users.push({key: c.key, ...c.val()})); renderUsers(users);
+    let users = []; snap.forEach(c => users.push({key: c.key, username: c.key, ...c.val()})); renderUsers(users);
   });
 }
 
@@ -2151,32 +2221,77 @@ function filterAudit() {
 // ============================================================
 function renderUsers(users) {
   const tb = document.getElementById('userTbody');
-  if (!users.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">No users</td></tr>'; return; }
+  const isAdmin = currentUserData && currentUserData.role === 'admin';
+  // Show/hide admin controls
+  const addBtn = document.getElementById('addUserBtn');
+  const adminNote = document.getElementById('usersAdminNote');
+  if (addBtn) addBtn.style.display = isAdmin ? '' : 'none';
+  if (adminNote) adminNote.style.display = isAdmin ? 'flex' : 'none';
+  if (!users.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">No users</td></tr>'; return; }
+  const roleLabels = { admin:'Admin', pharmacist:'Pharmacist', store_manager:'Store Manager', nurse:'Nurse', doctor:'Doctor', purchase:'Purchase Officer', accounts:'Billing / Accounts', quality:'Quality Manager' };
+  const roleBadge = { admin:'badge-red', pharmacist:'badge-teal', store_manager:'badge-blue', nurse:'badge-green', doctor:'badge-purple', purchase:'badge-amber', accounts:'badge-navy', quality:'badge-gray' };
   tb.innerHTML = users.map(u => `<tr>
+    <td style="font-family:var(--mono);font-weight:700">${u.username||u.key}</td>
     <td><b>${u.name||'—'}</b></td>
-    <td>${u.email||'—'}</td>
-    <td><span class="badge badge-teal">${(u.role||'').replace('_',' ')}</span></td>
+    <td><span class="badge ${roleBadge[u.role]||'badge-gray'}">${roleLabels[u.role]||u.role}</span></td>
     <td>${u.dept||'—'}</td>
-    <td><span class="badge badge-green">Active</span></td>
-    <td style="font-size:12px">${u.lastLogin ? new Date(u.lastLogin).toLocaleString('en-IN') : '—'}</td>
-    <td></td>
+    <td style="font-size:12px;color:var(--text3)">${u.lastLogin ? new Date(u.lastLogin).toLocaleString('en-IN') : 'Never'}</td>
+    <td>${isAdmin && u.username !== 'admin' ? `<button class="btn btn-red btn-sm" onclick="deleteUser('${u.username||u.key}','${u.name||u.username}')">🗑️ Delete</button>` : u.username === 'admin' ? '<span style="color:var(--text3);font-size:12px">Protected</span>' : ''}</td>
   </tr>`).join('');
 }
 
 async function createUser() {
   if (currentUserData.role !== 'admin') { toast('Admin access required', 'error'); return; }
+  const username = document.getElementById('uUsername').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
   const name = document.getElementById('uName').value.trim();
-  const email = document.getElementById('uEmail').value.trim();
   const pass = document.getElementById('uPass').value;
   const role = document.getElementById('uRole').value;
   const dept = document.getElementById('uDept').value.trim();
-  if (!name || !email || !pass) { toast('Fill all required fields', 'error'); return; }
-  try {
-    const cred = await auth.createUserWithEmailAndPassword(email, pass);
-    await db.ref('users/' + cred.user.uid).set({ name, email, role, dept, createdAt: new Date().toISOString() });
-    await logAudit('users', 'CREATE', cred.user.uid, { name, role });
-    toast('User created: ' + name, 'success'); closeModal('modalUser');
-  } catch(e) { toast(e.message, 'error'); }
+  if (!username || !name || !pass) { toast('Username, name and password are required', 'error'); return; }
+  if (pass.length < 6) { toast('Password must be at least 6 characters', 'error'); return; }
+  if (username.length < 3) { toast('Username must be at least 3 characters', 'error'); return; }
+  // Check if username exists
+  const existing = await db.ref('users/' + username).get();
+  if (existing.exists()) { toast('Username already exists: ' + username, 'error'); return; }
+  const passwordHash = await hashPassword(pass);
+  const userData = { username, name, role, dept, passwordHash, createdAt: new Date().toISOString(), createdBy: currentUserData.username };
+  await db.ref('users/' + username).set(userData);
+  await logAudit('users', 'CREATE', username, { name, role });
+  toast('User created: ' + name + ' (' + username + ')', 'success');
+  closeModal('modalUser');
+  document.getElementById('uUsername').value = '';
+  document.getElementById('uName').value = '';
+  document.getElementById('uPass').value = '';
+  document.getElementById('uDept').value = '';
+}
+
+async function deleteUser(username, name) {
+  if (currentUserData.role !== 'admin') { toast('Admin access required', 'error'); return; }
+  if (username === 'admin') { toast('Cannot delete the admin account', 'error'); return; }
+  if (username === currentUserData.username) { toast('Cannot delete your own account', 'error'); return; }
+  if (!confirm('Delete user "' + name + '" (' + username + ')? This cannot be undone.')) return;
+  await db.ref('users/' + username).remove();
+  await logAudit('users', 'DELETE', username, { name });
+  toast('User deleted: ' + name, 'warn');
+}
+
+async function changePassword() {
+  if (currentUserData.role !== 'admin') { toast('Admin access required', 'error'); return; }
+  const username = document.getElementById('cpUsername').value.trim().toLowerCase();
+  const newPass = document.getElementById('cpNewPass').value;
+  const confPass = document.getElementById('cpConfPass').value;
+  if (!username || !newPass) { toast('Enter username and new password', 'error'); return; }
+  if (newPass !== confPass) { toast('Passwords do not match', 'error'); return; }
+  if (newPass.length < 6) { toast('Password must be at least 6 characters', 'error'); return; }
+  const existing = await db.ref('users/' + username).get();
+  if (!existing.exists()) { toast('User not found: ' + username, 'error'); return; }
+  const newHash = await hashPassword(newPass);
+  await db.ref('users/' + username).update({ passwordHash: newHash, passwordChangedAt: new Date().toISOString(), passwordChangedBy: currentUserData.username });
+  await logAudit('users', 'CHANGE_PASSWORD', username, { changedBy: currentUserData.username });
+  toast('Password changed for: ' + username, 'success');
+  document.getElementById('cpUsername').value = '';
+  document.getElementById('cpNewPass').value = '';
+  document.getElementById('cpConfPass').value = '';
 }
 
 // ============================================================
