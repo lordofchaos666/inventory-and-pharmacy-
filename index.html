@@ -1,3 +1,5 @@
+[Reading 2896 lines from start (total: 2896 lines, 0 remaining)]
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -442,6 +444,7 @@ tr:last-child td { border-bottom: none; }
           <div class="card">
             <div class="card-header">
               <div><div class="card-title">🗃️ Stock Ledger</div><div class="card-subtitle">Live stock with batch tracking</div></div>
+              <button class="btn btn-teal btn-sm" onclick="openModal('modalStockAdj')">± Adjustment</button>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-outline btn-sm" onclick="exportTableCSV('stockTable','stock_ledger')">⬇ Export</button>
                 <button class="btn btn-teal btn-sm" onclick="openModal('modalStockAdj')">± Adjustment</button>
@@ -844,6 +847,42 @@ tr:last-child td { border-bottom: none; }
 
 <!-- BILL MODAL --><div class="modal-overlay hidden" id="modalBill"><div class="modal-box" style="max-width:660px;background:#fff;color:#000"><div class="modal-header" style="background:#f8fafc"><h3 style="color:#1e293b">🧾 Bill</h3><div style="display:flex;gap:8px"><button class="btn btn-teal btn-sm" onclick="window.print()">🖨️ Print</button><button class="modal-close" onclick="closeModal('modalBill')">✕</button></div></div><div class="modal-body" id="billPrintArea"></div></div></div>
 <!-- PRICE MODAL --><div class="modal-overlay hidden" id="modalPriceEdit"><div class="modal-box" style="max-width:420px"><div class="modal-header"><h3>💰 Set Price</h3><button class="modal-close" onclick="closeModal('modalPriceEdit')">✕</button></div><div class="modal-body"><div id="priceEditName" style="font-weight:700;font-size:15px;margin-bottom:16px;color:var(--teal)"></div><div class="form-grid"><div class="form-group-sm"><label>Cost Price ₹ *</label><input type="number" id="peCost" min="0" step="0.01" placeholder="0.00" oninput="priceMarginCalc()"></div><div class="form-group-sm"><label>Selling MRP ₹ *</label><input type="number" id="peMrp" min="0" step="0.01" placeholder="0.00" oninput="priceMarginCalc()"></div></div><div id="marginPreview" style="font-size:12px;margin-top:8px"></div></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modalPriceEdit')">Cancel</button><button class="btn btn-teal" onclick="saveDrugPrice()">💾 Save</button></div></div></div>
+<!-- STOCK ADJUSTMENT MODAL -->
+<div class="modal-overlay hidden" id="modalStockAdj">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-header">
+      <h3>± Stock Adjustment / Direct Stock Entry</h3>
+      <button class="modal-close" onclick="closeModal('modalStockAdj')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert-box info" style="margin-bottom:12px">Use this to add new stock directly, adjust quantities, or set opening stock without a GRN.</div>
+      <div class="form-grid">
+        <div class="form-group-sm" style="grid-column:1/-1">
+          <label>Drug Name *</label>
+          <input type="text" id="adjDrug" placeholder="Type drug name..." list="adjDrugList">
+          <datalist id="adjDrugList"></datalist>
+        </div>
+        <div class="form-group-sm"><label>Batch No.</label><input type="text" id="adjBatch" placeholder="Batch-001"></div>
+        <div class="form-group-sm"><label>Expiry (YYYY-MM-DD)</label><input type="date" id="adjExpiry"></div>
+        <div class="form-group-sm"><label>Quantity *</label><input type="number" id="adjQty" placeholder="0" min="1"></div>
+        <div class="form-group-sm"><label>Unit</label>
+          <select id="adjUnit"><option>Tablet</option><option>Capsule</option><option>Bottle</option><option>Vial</option><option>Ampoule</option><option>Strip</option><option>Sachet</option><option>ml</option><option>mg</option><option>Unit</option></select>
+        </div>
+        <div class="form-group-sm"><label>Reorder Level</label><input type="number" id="adjReorder" placeholder="10" min="0"></div>
+        <div class="form-group-sm"><label>Store Location</label>
+          <select id="adjStore"><option>Main Pharmacy</option><option>ICU</option><option>OT</option><option>Ward A</option><option>Ward B</option><option>Emergency</option><option>OPD</option></select>
+        </div>
+        <div class="form-group-sm"><label>Purchase Rate ₹</label><input type="number" id="adjPRate" placeholder="0.00" step="0.01" min="0"></div>
+        <div class="form-group-sm"><label>MRP ₹</label><input type="number" id="adjMRP" placeholder="0.00" step="0.01" min="0"></div>
+        <div class="form-group-sm" style="grid-column:1/-1"><label>Reason / Notes</label><input type="text" id="adjReason" placeholder="Opening stock / Manual adjustment / Donation etc."></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalStockAdj')">Cancel</button>
+      <button class="btn btn-teal" onclick="saveStockAdj()">💾 Save Stock Entry</button>
+    </div>
+  </div>
+</div>
 <!-- DRUG MASTER MODAL -->
 <div class="modal-overlay hidden" id="modalDrug">
   <div class="modal-box modal-lg">
@@ -1420,16 +1459,17 @@ function loadAllData() {
   const p = FB_DATA_PATH;
   fbDb.ref(p+'/drugs').on('value', snap => {
     allDrugs=[]; if(snap.val()) snap.forEach(c=>allDrugs.push({key:c.key,...c.val()}));
+    renderDrugs(); renderPricing();
   });
   fbDb.ref(p+'/items').on('value', snap => {
     allItems=[]; if(snap.val()) snap.forEach(c=>allItems.push({key:c.key,...c.val()})); renderItems();
   });
   fbDb.ref(p+'/vendors').on('value', snap => {
-    allVendors=[]; if(snap.val()) snap.forEach(c=>allVendors.push({key:c.key,...c.val()}));
+    allVendors=[]; if(snap.val()) snap.forEach(c=>allVendors.push({key:c.key,...c.val()})); renderVendors();
   });
   fbDb.ref(p+'/stock').on('value', snap => {
     allStock=[]; if(snap.val()) snap.forEach(c=>allStock.push({key:c.key,...c.val()}));
-    renderStock();
+    renderStock(); renderPricing();
   });
   fbDb.ref(p+'/purchase_orders').on('value', snap => {
     allPOs=[]; if(snap.val()) snap.forEach(c=>allPOs.push({key:c.key,...c.val()})); renderPOs();
@@ -1448,13 +1488,14 @@ function loadAllData() {
   });
   fbDb.ref(p+'/audit_log').limitToLast(500).on('value', snap => {
     allAudit=[]; if(snap.val()) snap.forEach(c=>allAudit.push({key:c.key,...c.val()}));
+    if(document.getElementById('mod-audit')?.classList.contains('active')) renderAudit();
   });
   fbDb.ref(p+'/returns').on('value', snap => {
     allReturns=[]; if(snap.val()) snap.forEach(c=>allReturns.push({key:c.key,...c.val()})); renderReturns();
   });
   fbDb.ref(p+'/rate_contracts').on('value', snap => { allRates=[]; if(snap.val()) snap.forEach(c=>allRates.push({key:c.key,...c.val()})); renderRates(); });
-  fbDb.ref(p+'/sales').on('value', snap => { allSales=[]; if(snap.val()) snap.forEach(c=>allSales.push({key:c.key,...c.val()})); });
-  fbDb.ref(p+'/drug_pricing').on('value', snap => { allPricing=snap.val()||{}; });
+  fbDb.ref(p+'/sales').on('value', snap => { allSales=[]; if(snap.val()) snap.forEach(c=>allSales.push({key:c.key,...c.val()})); if(document.getElementById('mod-sales')?.classList.contains('active')) renderSales(); });
+  fbDb.ref(p+'/drug_pricing').on('value', snap => { allPricing=snap.val()||{}; if(document.getElementById('mod-pricing')?.classList.contains('active')) renderPricing(); });
 }
 
 function loadDashboard() {
@@ -1946,29 +1987,6 @@ function filterStockStatus(val) {
   if (val === 'ok') return renderStock(allStock.filter(s => !s.reorderLevel || s.qty > s.reorderLevel));
 }
 
-async function saveStockAdj() {
-  const drug = document.getElementById('adjDrug').value.trim();
-  const type = document.getElementById('adjType').value;
-  const qty = parseInt(document.getElementById('adjQty').value);
-  const reason = document.getElementById('adjReason').value.trim();
-  if (!drug || !qty || !reason) { toast('Fill all fields including reason', 'error'); return; }
-  const entry = {
-    drugName: drug, batch: document.getElementById('adjBatch').value.trim(),
-    adjType: type, qty, reason,
-    adjustedBy: currentUserData.name, adjustedAt: new Date().toISOString()
-  };
-  // Find matching stock and adjust
-  const match = allStock.find(s => (s.drugName||'').toLowerCase().includes(drug.toLowerCase()));
-  if (match) {
-    let newQty = match.qty;
-    if (type.includes('Add')) newQty += qty;
-    else newQty = Math.max(0, newQty - qty);
-    await fbDb.ref(FB_DATA_PATH+'/stock/' + match.key).update({ qty: newQty, updatedAt: new Date().toISOString() });
-  }
-  await fbDb.ref(FB_DATA_PATH+'/stock_adjustments').push(entry);
-  await logAudit('stock', 'ADJUSTMENT', drug, { type, qty, reason });
-  toast('Stock adjustment saved', 'success'); closeModal('modalStockAdj');
-}
 
 // ============================================================
 // INDENTS
@@ -2745,9 +2763,21 @@ function navigate(module) {
   });
   const _t={dashboard:'Dashboard',drugmaster:'Drug Master',itemmaster:'Item Master',stock:'Stock Ledger',vendors:'Vendor Master',purchase:'Purchase Orders',grn:'GRN',indents:'Ward Indents',dispensing:'Drug Dispensing',returns:'Drug Returns',expiry:'Expiry Register',narcotic:'Narcotic Register',lasa:'LASA / High Risk',reports:'Reports',audit:'Audit Trail',users:'User Management',settings:'Settings',pos:'Point of Sale',sales:'Sales Register',pricing:'Drug Pricing'};
   const _tEl=document.getElementById('topbarTitle'); if(_tEl) _tEl.textContent=_t[module]||module;
-  if (module === 'settings') fbPopulateFields();
-  if (module === 'sales') renderSales();
-  if (module === 'pricing') renderPricing();
+  if (module === 'settings')   fbPopulateFields();
+  if (module === 'sales')      renderSales();
+  if (module === 'pricing')    renderPricing();
+  if (module === 'audit')      renderAudit();
+  if (module === 'drugmaster') renderDrugs();
+  if (module === 'stock')      renderStock();
+  if (module === 'vendors')    renderVendors();
+  if (module === 'indents')    renderIndents();
+  if (module === 'dispensing') renderDispenses();
+  if (module === 'returns')    renderReturns();
+  if (module === 'expiry')     renderExpiry();
+  if (module === 'narcotic')   renderNarcotic();
+  if (module === 'lasa')       renderLASA();
+  if (module === 'reports')    buildReportButtons();
+  if (module === 'pos')        posRecalc();
   if (module === 'users') { if (!currentUserData || currentUserData.role !== 'admin') { toast('Admin only','warn'); return; } refreshUsersPanel(); }
 }
 
@@ -2769,14 +2799,6 @@ function toast(msg, type='info') {
   t.appendChild(el);
   setTimeout(() => el.classList.add('show'), 10);
   setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); }, 3500);
-}
-
-function openModal(id) {
-  document.getElementById(id).classList.remove('hidden');
-  if (id === 'modalPO') { initPOForm(); }
-  if (id === 'modalGRN') { initGRNForm(); }
-  if (id === 'modalIndent') { initIndentForm(); }
-  if (id === 'modalDispense') { initDispForm(); }
 }
 
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
@@ -2818,6 +2840,59 @@ function posClearCart(){posCart=[];posRenderCart();['posPatient','posUhid','posD
 function showBillModal(bill){var area=document.getElementById('billPrintArea');var hosp=document.getElementById('setHospName')&&document.getElementById('setHospName').value||'Chandrawati Hospital';var addr=document.getElementById('setHospAddr')&&document.getElementById('setHospAddr').value||'GT Road, Barwadda, Dhanbad';area.innerHTML='<div style="text-align:center;border-bottom:2px solid #1e293b;padding-bottom:10px;margin-bottom:14px"><div style="font-size:20px;font-weight:800;color:#1e293b">✚ '+hosp+'</div><div style="font-size:12px;color:#64748b">'+addr+'</div></div><div style="display:flex;justify-content:space-between;margin-bottom:12px;font-size:12px"><div><div><b>Bill No:</b> '+bill.billNo+'</div><div><b>Date:</b> '+new Date(bill.createdAt).toLocaleString('en-IN')+'</div><div><b>Payment:</b> '+bill.paymentMode+'</div></div><div style="text-align:right"><div><b>Patient:</b> '+bill.patient+'</div>'+(bill.uhid?'<div><b>UHID:</b> '+bill.uhid+'</div>':'')+(bill.doctor?'<div><b>Doctor:</b> '+bill.doctor+'</div>':'')+'</div></div><table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px"><thead><tr style="background:#f1f5f9"><th style="padding:7px;border:1px solid #e2e8f0">#</th><th style="padding:7px;border:1px solid #e2e8f0;text-align:left">Drug</th><th style="padding:7px;border:1px solid #e2e8f0">Batch</th><th style="padding:7px;border:1px solid #e2e8f0">Exp</th><th style="padding:7px;border:1px solid #e2e8f0">Qty</th><th style="padding:7px;border:1px solid #e2e8f0;text-align:right">MRP</th><th style="padding:7px;border:1px solid #e2e8f0;text-align:right">Amount</th></tr></thead><tbody>'+(bill.items||[]).map(function(it,i){return'<tr><td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center">'+(i+1)+'</td><td style="padding:6px 8px;border:1px solid #e2e8f0"><b>'+it.drugName+'</b></td><td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center;font-family:monospace">'+(it.batch||'—')+'</td><td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center">'+(it.expiry||'—')+'</td><td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center">'+it.qty+'</td><td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:right">₹'+parseFloat(it.mrp).toFixed(2)+'</td><td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:right;font-weight:600">₹'+parseFloat(it.amount).toFixed(2)+'</td></tr>';}).join('')+'</tbody></table><div style="display:flex;justify-content:flex-end"><div style="min-width:220px;font-size:13px"><div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e2e8f0"><span>Subtotal</span><span>₹'+bill.subtotal.toFixed(2)+'</span></div>'+(bill.discountAmt>0?'<div style="display:flex;justify-content:space-between;padding:4px 0;color:#dc2626;border-bottom:1px solid #e2e8f0"><span>Discount ('+bill.discountPct+'%)</span><span>-₹'+bill.discountAmt.toFixed(2)+'</span></div>':'')+(bill.gstAmt>0?'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e2e8f0"><span>GST ('+bill.gstPct+'%)</span><span>₹'+bill.gstAmt.toFixed(2)+'</span></div>':'')+'<div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:800;font-size:16px;border-top:2px solid #1e293b"><span>TOTAL</span><span>₹'+bill.total.toFixed(2)+'</span></div></div></div><div style="margin-top:14px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:10px">Sold by: '+(bill.soldByName||bill.soldBy)+' · '+hosp+'</div>';openModal('modalBill');}
 function renderSales(){var tb=document.getElementById('salesTbody'),st=document.getElementById('salesStats');if(!tb)return;var data=allSales.slice().sort(function(a,b){return new Date(b.createdAt)-new Date(a.createdAt);});var from=document.getElementById('salesFrom')&&document.getElementById('salesFrom').value;var to=document.getElementById('salesTo')&&document.getElementById('salesTo').value;if(from)data=data.filter(function(s){return s.createdAt>=from;});if(to)data=data.filter(function(s){return s.createdAt<=to+'T23:59:59';});var total=data.reduce(function(s,b){return s+(b.total||0);},0);var today=data.filter(function(s){return new Date(s.createdAt).toDateString()===new Date().toDateString();});if(st)st.innerHTML='<div class="stat-card stat-teal"><div class="stat-icon">🧾</div><div class="stat-info"><p>'+data.length+'</p><span>Total Bills</span></div></div><div class="stat-card stat-green"><div class="stat-icon">₹</div><div class="stat-info"><p>₹'+total.toFixed(0)+'</p><span>Revenue</span></div></div><div class="stat-card stat-blue"><div class="stat-icon">📅</div><div class="stat-info"><p>'+today.length+'</p><span>Today</span></div></div><div class="stat-card stat-purple"><div class="stat-icon">₹</div><div class="stat-info"><p>₹'+today.reduce(function(s,b){return s+(b.total||0);},0).toFixed(0)+'</p><span>Today Revenue</span></div></div>';if(!data.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">No sales records</td></tr>';return;}tb.innerHTML=data.map(function(s){return'<tr><td style="font-family:var(--mono);font-size:11px">'+s.billNo+'</td><td style="font-size:11px">'+new Date(s.createdAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+'</td><td><b>'+s.patient+'</b></td><td style="font-size:11px">'+(s.uhid||'—')+'</td><td>'+(s.items||[]).length+'</td><td style="font-family:var(--mono);font-weight:700;color:var(--teal)">₹'+(s.total||0).toFixed(2)+'</td><td><span class="badge badge-teal">'+(s.paymentMode||'—')+'</span></td><td style="font-size:11px">'+(s.soldBy||'—')+'</td><td><button class="btn btn-outline btn-sm" onclick="showBillModal(allSales.find(function(x){return x.key===\''+s.key+'\';}))">🖨️</button></td></tr>';}).join('');}
 function exportSalesCSV(){var rows=[['Bill No','Date','Patient','UHID','Items','Total','Payment','By']];allSales.forEach(function(s){rows.push([s.billNo,new Date(s.createdAt).toLocaleString('en-IN'),s.patient,s.uhid||'',(s.items||[]).length,s.total,s.paymentMode,s.soldBy]);});var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c||'').replace(/"/g,'""')+'"';}).join(',');}).join(String.fromCharCode(10));var a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='sales.csv';a.click();}
+</script>
+
+
+<script>
+// ════════════════════════════════════════════════════════
+// STOCK ADJUSTMENT — direct stock entry without GRN
+// ════════════════════════════════════════════════════════
+function openModal(id) {
+  // Override to populate drug datalist on stock adj modal
+  document.getElementById(id).classList.remove('hidden');
+  if (id === 'modalPO')       { try { initPOForm(); }      catch(e){} }
+  if (id === 'modalGRN')      { try { initGRNForm(); }     catch(e){} }
+  if (id === 'modalIndent')   { try { initIndentForm(); }  catch(e){} }
+  if (id === 'modalDispense') { try { initDispForm(); }    catch(e){} }
+  if (id === 'modalStockAdj') {
+    // Populate drug datalist
+    const dl = document.getElementById('adjDrugList');
+    if (dl) { dl.innerHTML = allDrugs.map(d => '<option value="'+d.generic+'">').join(''); }
+    // Reset form
+    ['adjDrug','adjBatch','adjQty','adjPRate','adjMRP','adjReason'].forEach(function(fid){
+      var el = document.getElementById(fid); if(el) el.value='';
+    });
+    var adjExpiry = document.getElementById('adjExpiry'); if(adjExpiry) adjExpiry.value='';
+    var adjReorder = document.getElementById('adjReorder'); if(adjReorder) adjReorder.value='';
+  }
+}
+
+async function saveStockAdj() {
+  var drug   = (document.getElementById('adjDrug').value||'').trim();
+  var qty    = parseInt(document.getElementById('adjQty').value)||0;
+  if (!drug)   { toast('Drug name is required','error'); return; }
+  if (qty < 1) { toast('Quantity must be at least 1','error'); return; }
+  if (!fbDb)   { toast('Not connected to Firebase','error'); return; }
+  var entry = {
+    drugName:     drug,
+    batch:        (document.getElementById('adjBatch').value||'').trim() || 'ADJ-'+Date.now().toString().slice(-6),
+    expiry:       document.getElementById('adjExpiry').value || '',
+    qty:          qty,
+    unit:         document.getElementById('adjUnit').value || 'Tablet',
+    reorderLevel: parseInt(document.getElementById('adjReorder').value)||0,
+    store:        document.getElementById('adjStore').value || 'Main Pharmacy',
+    purchaseRate: parseFloat(document.getElementById('adjPRate').value)||0,
+    mrp:          parseFloat(document.getElementById('adjMRP').value)||0,
+    reason:       (document.getElementById('adjReason').value||'').trim() || 'Manual adjustment',
+    addedBy:      currentUserData.username,
+    updatedAt:    new Date().toISOString(),
+    isAdjustment: true
+  };
+  await fbDb.ref(FB_DATA_PATH+'/stock').push(entry);
+  await logAudit('stock','ADJUSTMENT','manual',{drug:entry.drugName,qty:entry.qty,reason:entry.reason});
+  toast('Stock entry saved: '+drug+' × '+qty,'success');
+  closeModal('modalStockAdj');
+}
 </script>
 </body>
 </html>
