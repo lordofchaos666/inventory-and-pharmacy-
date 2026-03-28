@@ -1,3 +1,5 @@
+[Reading 3296 lines from start (total: 3296 lines, 0 remaining)]
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -64,7 +66,6 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
   cursor: pointer; transition: background 0.2s; letter-spacing: 0.3px;
 }
 .btn-primary:hover { background: var(--teal2); }
-.login-err.err { color: #f87171 !important; display: block !important; }
 .login-err { color: var(--red); font-size: 12px; margin-top: 10px; text-align: center; }
 
 /* ---- APP SHELL ---- */
@@ -272,15 +273,13 @@ tr:last-child td { border-bottom: none; }
     </div>
     <div class="form-group">
       <label>Username</label>
-      <input type="text" id="loginUsername" placeholder="admin" autocomplete="username"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('loginPassword').focus();document.getElementById('loginPassword').select();}">
+      <input type="text" id="loginUsername" placeholder="admin" autocomplete="username">
     </div>
     <div class="form-group">
       <label>Password</label>
-      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();doLogin();}">
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
     </div>
-    <button class="btn-primary" id="loginBtn" type="button" onclick="doLogin()">Sign In</button>
+    <button class="btn-primary" id="loginBtn" onclick="doLogin()">Sign In</button>
     <p class="login-err" id="loginErr"></p>
     <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:16px;">Chandrawati Hospital · GT Road Barwadda · Dhanbad</p>
   </div>
@@ -390,7 +389,7 @@ tr:last-child td { border-bottom: none; }
               <div><div class="card-title">💊 Drug Master</div><div class="card-subtitle">Generic & brand drug registry</div></div>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-outline btn-sm" onclick="exportTableCSV('drugTable','drug_master')">⬇ Export</button>
-                <button class="btn btn-teal btn-sm" id="btnAddDrug" style="display:none" onclick="openModal('modalDrug')">+ Add Drug</button>
+                <button class="btn btn-teal btn-sm" id="btnAddDrug" onclick="openModal('modalDrug')">+ Add Drug</button>
               </div>
             </div>
             <div class="search-bar">
@@ -1402,23 +1401,6 @@ let editingDrugKey = null;
 // ============================================================
 
 window.addEventListener('DOMContentLoaded', () => {
-  // Force re-seed if existing accounts don't have pharmacist
-  const existing = getAccounts();
-  if (!existing || !existing.find(a => a.username === 'pharmacist')) {
-    // Preserve any custom accounts, just ensure defaults exist
-    const merged = existing ? [...existing] : [];
-    ['admin','billing','pharmacist'].forEach(u => {
-      if (!merged.find(a => a.username === u)) {
-        const defaults = {
-          admin:      { username:'admin',      password:'Admin@1234',   name:'Administrator',  role:'admin',       dept:'Administration', protected:true },
-          billing:    { username:'billing',    password:'Billing@1234', name:'Billing',        role:'accounts',    dept:'Billing',        protected:false },
-          pharmacist: { username:'pharmacist', password:'Pharma@1234',  name:'Pharmacist',     role:'pharmacist',  dept:'Pharmacy',       protected:false }
-        };
-        merged.push(defaults[u]);
-      }
-    });
-    saveAccounts(merged);
-  }
   initDefaultAccounts();
   const hashCfg = fbCheckUrlHash();
   const cfg = hashCfg || fbGetConfig();
@@ -1444,26 +1426,17 @@ async function doLogin() {
   showErr('');
   if (!username) { showErr('Enter your username.'); return; }
   if (!pass)     { showErr('Enter your password.'); return; }
-  // Always ensure default accounts exist
-  let accounts = getAccounts();
-  if (!accounts || !accounts.length) { initDefaultAccounts(); accounts = getAccounts() || []; }
+  const accounts = getAccounts() || [];
   const acct = accounts.find(a => a.username === username);
-  if (!acct) { showErr('User not found. Default: admin / Admin@1234'); return; }
-  if (acct.disabled) { showErr('Account disabled. Contact admin.'); return; }
-  if (acct.password !== pass) { showErr('Wrong password.'); return; }
+  if (!acct)             { showErr('Invalid username or password.'); return; }
+  if (acct.disabled)     { showErr('Account disabled. Contact admin.'); return; }
+  if (acct.password !== pass) { showErr('Invalid username or password.'); return; }
+  // In-memory session only — no localStorage persistence
   currentUser     = { uid: username, username };
   currentUserData = { ...acct };
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  try {
-    initApp();
-  } catch(err) {
-    console.error('initApp crashed:', err);
-    showErr('Login error: ' + err.message + ' — check browser console (F12)');
-    // Still show app even if initApp crashes
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-  }
+  initApp();
 }
 
 async function doLogout() {
@@ -1480,35 +1453,18 @@ async function doLogout() {
 // INIT APP
 // ============================================================
 function initApp() {
-  try { document.getElementById('loginScreen').style.display = 'none'; } catch(e){}
-  try { document.getElementById('app').style.display = 'block'; } catch(e){}
-  try {
-    const name = currentUserData.name || currentUserData.username || 'User';
-    const sn = document.getElementById('sidebarName');
-    const sr = document.getElementById('sidebarRole');
-    const av = document.getElementById('avatarInitials');
-    if (sn) sn.textContent = name;
-    if (sr) sr.textContent = (currentUserData.role || 'user').replace('_',' ').toUpperCase();
-    if (av) av.textContent = name.charAt(0).toUpperCase();
-  } catch(e) { console.warn('initApp UI:', e); }
-  try {
-    setInterval(() => {
-      const d = document.getElementById('topbarDate');
-      if (d) d.textContent = new Date().toLocaleString('en-IN');
-    }, 1000);
-  } catch(e){}
-  try { if (fbDb && fbConnected) loadAllData(); } catch(e) { console.warn('loadAllData:', e); }
-  try { loadDashboard(); } catch(e) { console.warn('loadDashboard:', e); }
-  try { buildReportButtons(); } catch(e) { console.warn('buildReportButtons:', e); }
-  try {
-    const _isAdm = currentUserData && currentUserData.role === 'admin';
-    ['btnAddDrug','btnAddItem','btnDrugPricing'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = _isAdm ? '' : 'none';
-    });
-    const navPricing = document.getElementById('navPricing');
-    if (navPricing) navPricing.style.display = _isAdm ? '' : 'none';
-  } catch(e) { console.warn('RBAC:', e); }
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const name = currentUserData.name || currentUserData.username || 'User';
+  document.getElementById('sidebarName').textContent = name;
+  document.getElementById('sidebarRole').textContent = (currentUserData.role || 'user').replace('_',' ').toUpperCase();
+  document.getElementById('avatarInitials').textContent = name.charAt(0).toUpperCase();
+  setInterval(() => {
+    document.getElementById('topbarDate').textContent = new Date().toLocaleString('en-IN');
+  }, 1000);
+  if (fbDb && fbConnected) loadAllData();
+  loadDashboard();
+  buildReportButtons();
 }
 
 async function logAudit(module, action, recordId, details) {
@@ -1575,10 +1531,8 @@ function loadAllData() {
 }
 
 function loadDashboard() {
-  if (!fbDb) {
-    const _ds = document.getElementById('dashStats');
-    if (!_ds) return;
-    _ds.innerHTML = `
+  if (!fbDb) { 
+    document.getElementById('dashStats').innerHTML = `
       <div class="alert-box warn" style="grid-column:1/-1">
         <div style="font-size:14px;font-weight:700;margin-bottom:8px">🔄 Connecting to Firebase…</div>
         <div style="margin-bottom:8px">Please wait — auto-connecting. If this persists, check your internet connection.</div>
@@ -1605,7 +1559,6 @@ function loadDashboard() {
 
   // Low stock list
   const lowDiv = document.getElementById('lowStockList');
-  if (!lowDiv) return;
   if (low.length === 0) { lowDiv.innerHTML = '<p style="color:var(--green);font-size:13px">✅ All items above reorder level</p>'; }
   else {
     lowDiv.innerHTML = low.slice(0,8).map(s => `
@@ -2583,9 +2536,7 @@ const reportDefs = [
 ];
 
 function buildReportButtons() {
-  const rb = document.getElementById('reportButtons');
-  if (!rb) return;
-  rb.innerHTML = reportDefs.map(r =>
+  document.getElementById('reportButtons').innerHTML = reportDefs.map(r =>
     `<button class="card" style="cursor:pointer;text-align:left;border:1.5px solid var(--border);padding:16px;border-radius:8px;transition:border-color 0.15s" onclick="runReport('${r.id}')" onmouseover="this.style.borderColor='var(--teal)'" onmouseout="this.style.borderColor='var(--border)'">
       <div style="font-size:22px;margin-bottom:6px">${r.icon}</div>
       <div style="font-size:13px;font-weight:600;color:var(--text)">${r.name}</div>
@@ -2775,9 +2726,8 @@ document.addEventListener('keydown', function(e) {
   if (tag !== 'INPUT' && tag !== 'SELECT') return;
   e.preventDefault();
 
-  // Find the enclosing modal or form context — login-card takes priority
-  const loginCard = e.target.closest('.login-card');
-  const container = loginCard || e.target.closest('.modal-box') || e.target.closest('.card');
+  // Find the enclosing modal or form context
+  const container = e.target.closest('.modal-box, .login-card, .card');
   if (!container) return;
 
   // All focusable fields in this container
@@ -2921,7 +2871,7 @@ function navigate(module) {
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'" + module + "'")) n.classList.add('active');
   });
-  const titles = {dashboard:'Dashboard',drugmaster:'Drug Master',itemmaster:'Item Master',stock:'Stock Ledger',vendors:'Vendor Master',purchase:'Purchase Orders',grn:'Goods Receipt (GRN)',indents:'Ward Indents',dispensing:'Drug Dispensing',returns:'Drug Returns',expiry:'Expiry Register',narcotic:'Narcotic Register',lasa:'LASA / High Risk',reports:'Reports',audit:'Audit Trail',users:'User Management',settings:'Settings',pos:'Point of Sale',sales:'Sales Register',pricing:'Drug Pricing'};
+  const titles = {dashboard:'Dashboard',drugmaster:'Drug Master',itemmaster:'Item Master',stock:'Stock Ledger',vendors:'Vendor Master',purchase:'Purchase Orders',grn:'Goods Receipt (GRN)',indents:'Ward Indents',dispensing:'Drug Dispensing',returns:'Drug Returns',expiry:'Expiry Register',narcotic:'Narcotic Register',lasa:'LASA / High Risk',reports:'Reports',audit:'Audit Trail',users:'User Management',settings:'Settings'};
   const titleEl = document.getElementById('topbarTitle');
   if (titleEl) titleEl.textContent = titles[module] || module;
   if (module === 'settings') fbPopulateFields();
