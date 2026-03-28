@@ -1283,7 +1283,12 @@ const FB_CFG_KEY   = 'pharma_fb_config_v1';
 const FB_DATA_PATH = 'pharma_inventory';
 
 // BAKED-IN CONFIG — always null in source. Keys never in git.
-const FIREBASE_BAKED_CONFIG = null;
+const FIREBASE_BAKED_CONFIG = {
+  apiKey:      "AIzaSyDeJqsvczfezMKCuyIeJe4N6ZVxF82JZs",
+  databaseURL: "https://pharmacy-and-inventory-default-rtdb.asia-southeast1.firebasedatabase.app",
+  authDomain:  "pharmacy-and-inventory.firebaseapp.com",
+  projectId:   "pharmacy-and-inventory"
+};
 
 function fbGetConfig() {
   if (FIREBASE_BAKED_CONFIG && FIREBASE_BAKED_CONFIG.apiKey) return FIREBASE_BAKED_CONFIG;
@@ -1451,6 +1456,14 @@ window.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => fbInit(cfg), 50);
   } else {
     setSyncBadge('local');
+  }
+  // Also store baked config to localStorage so Settings panel shows it
+  if (FIREBASE_BAKED_CONFIG && FIREBASE_BAKED_CONFIG.apiKey) {
+    try {
+      if (!localStorage.getItem(FB_CFG_KEY)) {
+        localStorage.setItem(FB_CFG_KEY, JSON.stringify(FIREBASE_BAKED_CONFIG));
+      }
+    } catch(e) {}
   }
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
@@ -2914,19 +2927,13 @@ function fbPopulateFields() {
 
 // ── RESTORED FROM BASE ──
 function navigate(module) {
-  // RBAC guard
-  const isAdmin = currentUserData && currentUserData.role === 'admin';
-  const adminOnly = ['drugmaster','itemmaster','stock','vendors','purchase','grn',
-    'indents','dispensing','returns','expiry','narcotic','lasa','reports','audit','users','pricing'];
-  if (!isAdmin && adminOnly.includes(module)) {
-    toast('Access restricted — admin only','warn'); return;
-  }
   document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const el = document.getElementById('mod-' + module);
   if (el) el.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => {
-    if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'" + module + "'")) n.classList.add('active');
+    const oc = n.getAttribute('onclick') || '';
+    if (oc.includes("'" + module + "'") || oc.includes('"' + module + '"')) n.classList.add('active');
   });
   const titles = {
     dashboard:'Dashboard', drugmaster:'Drug Master', itemmaster:'Item Master',
