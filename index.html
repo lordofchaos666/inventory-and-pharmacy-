@@ -2717,6 +2717,14 @@ function fbPopulateFields() {
 }
 
 function navigate(module) {
+  const titles = {
+    dashboard:'Dashboard', drugmaster:'Drug Master', itemmaster:'Item Master',
+    stock:'Stock Ledger', vendors:'Vendor Master', purchase:'Purchase Orders',
+    grn:'Goods Receipt (GRN)', indents:'Ward Indents', dispensing:'Drug Dispensing',
+    returns:'Drug Returns', expiry:'Expiry Register', narcotic:'Narcotic Register',
+    lasa:'LASA / High Risk', reports:'Reports', audit:'Audit Trail',
+    users:'User Management', settings:'Settings'
+  };
   document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const el = document.getElementById('mod-' + module);
@@ -2724,7 +2732,8 @@ function navigate(module) {
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'" + module + "'")) n.classList.add('active');
   });
-  document.getElementById('topbarTitle').textContent = moduleTitles[module] || module;
+  const titleEl = document.getElementById('topbarTitle');
+  if (titleEl) titleEl.textContent = titles[module] || module;
   if (module === 'settings') fbPopulateFields();
   if (module === 'users') refreshUsersPanel();
 }
