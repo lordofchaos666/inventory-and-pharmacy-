@@ -315,6 +315,11 @@ tr:last-child td { border-bottom: none; }
         <div class="nav-item" onclick="navigate('dispensing')"><span class="nav-icon">💉</span><span>Dispensing</span></div>
         <div class="nav-item" onclick="navigate('returns')"><span class="nav-icon">↩️</span><span>Returns</span></div>
 
+        <div class="nav-section">Pharmacy Billing</div>
+        <div class="nav-item" onclick="navigate('pos')"><span class="nav-icon">🏪</span><span>Point of Sale</span></div>
+        <div class="nav-item" onclick="navigate('sales')"><span class="nav-icon">🧾</span><span>Sales Register</span></div>
+        <div class="nav-item" id="navPricing" onclick="navigate('pricing')" style="display:none"><span class="nav-icon">💰</span><span>Drug Pricing</span></div>
+
         <div class="nav-section">Alerts & NABH</div>
         <div class="nav-item" onclick="navigate('expiry')"><span class="nav-icon">⚠️</span><span>Expiry Alerts</span></div>
         <div class="nav-item" onclick="navigate('narcotic')"><span class="nav-icon">🔐</span><span>Narcotic Reg.</span></div>
@@ -382,7 +387,7 @@ tr:last-child td { border-bottom: none; }
               <div><div class="card-title">💊 Drug Master</div><div class="card-subtitle">Generic & brand drug registry</div></div>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-outline btn-sm" onclick="exportTableCSV('drugTable','drug_master')">⬇ Export</button>
-                <button class="btn btn-teal btn-sm" onclick="openModal('modalDrug')">+ Add Drug</button>
+                <button class="btn btn-teal btn-sm" id="btnAddDrug" onclick="openModal('modalDrug')">+ Add Drug</button>
               </div>
             </div>
             <div class="search-bar">
@@ -727,31 +732,16 @@ tr:last-child td { border-bottom: none; }
           </div>
           <div class="card" id="firebaseConfigCard">
             <div class="card-header">
-              <div>
-                <div class="card-title">🔥 Firebase Configuration</div>
-                <div class="card-subtitle">Enter once — all devices sync automatically</div>
-              </div>
+              <div><div class="card-title">🔥 Firebase Configuration</div><div class="card-subtitle">Enter once — all devices sync automatically</div></div>
             </div>
             <div id="fbStatusBox" class="alert-box info" style="margin-bottom:14px">
               <span id="fbStatusText">⚪ Not connected — enter credentials below and click Save &amp; Connect</span>
             </div>
             <div class="form-grid" style="margin-bottom:14px">
-              <div class="form-group-sm">
-                <label>API Key *</label>
-                <input type="text" id="fb_apiKey" placeholder="AIzaSy...">
-              </div>
-              <div class="form-group-sm">
-                <label>Database URL *</label>
-                <input type="text" id="fb_dbUrl" placeholder="https://xxx-default-rtdb.asia-southeast1.firebasedatabase.app">
-              </div>
-              <div class="form-group-sm">
-                <label>Auth Domain</label>
-                <input type="text" id="fb_authDomain" placeholder="your-project.firebaseapp.com">
-              </div>
-              <div class="form-group-sm">
-                <label>Project ID</label>
-                <input type="text" id="fb_projectId" placeholder="your-project-id">
-              </div>
+              <div class="form-group-sm"><label>API Key *</label><input type="text" id="fb_apiKey" placeholder="AIzaSy..."></div>
+              <div class="form-group-sm"><label>Database URL *</label><input type="text" id="fb_dbUrl" placeholder="https://xxx-default-rtdb.asia-southeast1.firebasedatabase.app"></div>
+              <div class="form-group-sm"><label>Auth Domain</label><input type="text" id="fb_authDomain" placeholder="your-project.firebaseapp.com"></div>
+              <div class="form-group-sm"><label>Project ID</label><input type="text" id="fb_projectId" placeholder="your-project-id"></div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
               <button class="btn btn-teal" onclick="fbSaveConfig()">💾 Save &amp; Connect</button>
@@ -761,22 +751,114 @@ tr:last-child td { border-bottom: none; }
               <span id="fbTestResult" style="font-size:12px;color:var(--text2)"></span>
             </div>
             <div id="shareLinkBox" style="display:none;word-break:break-all;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:11px;color:var(--text2);margin-bottom:12px;font-family:monospace"></div>
-            <div id="fbShareNote" style="display:none" class="alert-box success">✅ Link copied! Open on any device to auto-connect.</div>
+            <div id="fbShareNote" style="display:none" class="alert-box success">Link copied — open on any device to auto-connect.</div>
             <div class="alert-box info" style="margin-bottom:12px">
               <b>Your credentials:</b><br>
               API Key: <code style="background:rgba(0,0,0,0.15);padding:1px 5px;border-radius:3px;font-size:11px">AIzaSyDeJqsvczfezMKCuyIeJe4N6ZVxF82JZs</code><br>
               Database URL: <code style="background:rgba(0,0,0,0.15);padding:1px 5px;border-radius:3px;font-size:11px">https://pharmacy-and-inventory-default-rtdb.asia-southeast1.firebasedatabase.app</code>
             </div>
-            <details style="margin-bottom:10px">
-              <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--text2)">🔒 Firebase Database Rules</summary>
-              <div style="margin-top:8px;font-size:12px;color:var(--text2);margin-bottom:6px">Firebase Console → Realtime Database → Rules → paste → Publish:</div>
-              <pre style="background:#1e2a3a;color:#4db6ac;padding:12px;border-radius:6px;font-family:var(--mono);font-size:12px;overflow-x:auto">{
-  "rules": {
-    ".read": "now < 1775673000000",
-    ".write": "now < 1775673000000"
-  }
-}</pre>
-            </details>
+          </div>
+          </div>
+        </div>
+
+
+        <!-- ===================== POINT OF SALE ===================== -->
+        <div id="mod-pos" class="module">
+          <div style="display:grid;grid-template-columns:1fr 380px;gap:16px;height:calc(100vh - 130px)">
+            <!-- LEFT: Drug search + cart -->
+            <div style="display:flex;flex-direction:column;gap:12px;overflow:hidden">
+              <div class="card" style="flex-shrink:0">
+                <div class="card-header"><div><div class="card-title">🏪 Point of Sale</div><div class="card-subtitle">Sell medication from inventory</div></div></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+                  <div class="form-group-sm"><label>Patient Name *</label><input type="text" id="posPatient" placeholder="Patient name"></div>
+                  <div class="form-group-sm"><label>UHID / Mobile</label><input type="text" id="posUhid" placeholder="UHID or phone"></div>
+                  <div class="form-group-sm"><label>Doctor / Prescription</label><input type="text" id="posDoctor" placeholder="Dr. Name"></div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center">
+                  <input type="text" id="posDrugSearch" placeholder="🔍 Search drug to add..." style="flex:1;padding:9px 14px;border:1.5px solid var(--border);border-radius:7px;font-family:var(--font);font-size:13px;background:var(--bg);color:var(--text)" oninput="posSearchDrug(this.value)">
+                  <select id="posSearchType" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:7px;font-family:var(--font);font-size:13px;background:var(--bg);color:var(--text)" onchange="posSearchDrug(document.getElementById('posDrugSearch').value)">
+                    <option value="all">All Drugs</option>
+                    <option value="instock">In Stock Only</option>
+                  </select>
+                </div>
+                <div id="posDrugResults" style="margin-top:8px;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:7px;display:none"></div>
+              </div>
+              <div class="card" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+                <div class="card-header"><div class="card-title">🛒 Cart</div><span id="posCartCount" style="font-size:12px;color:var(--text2)">0 items</span></div>
+                <div style="flex:1;overflow-y:auto">
+                  <table style="width:100%;font-size:12px;border-collapse:collapse">
+                    <thead><tr style="background:var(--surface2)"><th style="padding:8px;text-align:left">Drug</th><th style="padding:8px;text-align:center">Batch</th><th style="padding:8px;text-align:center">Qty</th><th style="padding:8px;text-align:right">MRP</th><th style="padding:8px;text-align:right">Amount</th><th style="padding:8px;text-align:center">✕</th></tr></thead>
+                    <tbody id="posCartBody"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Add drugs from search above</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <!-- RIGHT: Bill summary -->
+            <div class="card" style="display:flex;flex-direction:column;gap:12px">
+              <div class="card-title">🧾 Bill Summary</div>
+              <div style="background:var(--surface2);border-radius:8px;padding:14px;font-size:13px">
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Subtotal</span><span id="posSubtotal">₹0.00</span></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px;align-items:center">
+                  <span>Discount (%)</span>
+                  <input type="number" id="posDiscount" value="0" min="0" max="100" style="width:70px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;text-align:right;font-size:13px;background:var(--bg);color:var(--text)" oninput="posRecalc()">
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Discount Amt</span><span id="posDiscAmt" style="color:var(--red)">-₹0.00</span></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px;align-items:center">
+                  <span>GST (%)</span>
+                  <input type="number" id="posGst" value="0" min="0" max="28" style="width:70px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;text-align:right;font-size:13px;background:var(--bg);color:var(--text)" oninput="posRecalc()">
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>GST Amt</span><span id="posGstAmt">₹0.00</span></div>
+                <hr style="border-color:var(--border);margin:10px 0">
+                <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px"><span>Total</span><span id="posTotal" style="color:var(--teal)">₹0.00</span></div>
+              </div>
+              <div class="form-group-sm"><label>Payment Mode</label>
+                <select id="posPayMode" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:7px;font-family:var(--font);font-size:13px;background:var(--bg);color:var(--text)">
+                  <option>Cash</option><option>UPI</option><option>Card</option><option>Insurance</option><option>Credit (Hospital Account)</option>
+                </select>
+              </div>
+              <div class="form-group-sm"><label>Notes</label><input type="text" id="posNotes" placeholder="Optional notes"></div>
+              <button class="btn btn-teal" style="width:100%;padding:12px;font-size:14px;font-weight:700" onclick="posGenerateBill()">💾 Generate Bill &amp; Deduct Stock</button>
+              <button class="btn btn-outline btn-sm" style="width:100%" onclick="posClearCart()">🗑️ Clear Cart</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================== SALES REGISTER ===================== -->
+        <div id="mod-sales" class="module">
+          <div class="card">
+            <div class="card-header">
+              <div><div class="card-title">🧾 Sales Register</div><div class="card-subtitle">All pharmacy bills</div></div>
+              <div style="display:flex;gap:8px">
+                <input type="date" id="salesDateFrom" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--bg);color:var(--text)">
+                <input type="date" id="salesDateTo" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--bg);color:var(--text)">
+                <button class="btn btn-outline btn-sm" onclick="renderSales()">🔍 Filter</button>
+                <button class="btn btn-outline btn-sm" onclick="exportSalesCSV()">⬇ CSV</button>
+              </div>
+            </div>
+            <div id="salesSummaryBar" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px"></div>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>Bill No.</th><th>Date/Time</th><th>Patient</th><th>UHID</th><th>Items</th><th>Subtotal</th><th>Discount</th><th>GST</th><th>Total</th><th>Payment</th><th>By</th><th>Actions</th></tr></thead>
+                <tbody id="salesTbody"><tr><td colspan="12" style="text-align:center;color:var(--text3);padding:24px">No sales records</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================== DRUG PRICING (ADMIN ONLY) ===================== -->
+        <div id="mod-pricing" class="module">
+          <div class="card">
+            <div class="card-header">
+              <div><div class="card-title">💰 Drug Pricing</div><div class="card-subtitle">Set cost price &amp; selling price — Admin only</div></div>
+              <button class="btn btn-outline btn-sm" onclick="exportPricingCSV()">⬇ Export</button>
+            </div>
+            <div class="alert-box info" style="margin-bottom:12px">Only the Administrator can set drug prices. Pharmacists can view prices but <b>cannot modify them</b>.</div>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>Drug Name</th><th>Form / Strength</th><th>Unit</th><th>Cost Price (₹)</th><th>Selling Price / MRP (₹)</th><th>Margin %</th><th>Last Updated</th><th>Action</th></tr></thead>
+                <tbody id="pricingTbody"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Loading...</td></tr></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -786,6 +868,41 @@ tr:last-child td { border-bottom: none; }
 </div><!-- /app -->
 
 <!-- ===================== MODALS ===================== -->
+
+<!-- BILL PRINT MODAL -->
+<div class="modal-overlay hidden" id="modalBill">
+  <div class="modal-box" style="max-width:700px;background:#fff;color:#000">
+    <div class="modal-header" style="background:#f8f9fa;border-bottom:2px solid #e2e8f0">
+      <h3 style="color:#1e293b">🧾 Pharmacy Bill</h3>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-teal btn-sm" onclick="printBill()">🖨️ Print</button>
+        <button class="modal-close" onclick="closeModal('modalBill')">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="billPrintArea" style="padding:24px;font-family:'IBM Plex Sans',sans-serif;color:#1e293b">
+      <!-- Bill content injected by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- PRICE EDIT MODAL -->
+<div class="modal-overlay hidden" id="modalPriceEdit">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-header"><h3>💰 Set Drug Price</h3><button class="modal-close" onclick="closeModal('modalPriceEdit')">✕</button></div>
+    <div class="modal-body">
+      <div id="priceEditDrugName" style="font-weight:700;font-size:15px;margin-bottom:16px;color:var(--teal)"></div>
+      <div class="form-grid">
+        <div class="form-group-sm"><label>Cost Price (₹) *<br><small style="color:var(--text3)">Purchase/landing cost</small></label><input type="number" id="peCost" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="form-group-sm"><label>Selling Price / MRP (₹) *<br><small style="color:var(--text3)">Price charged to patient</small></label><input type="number" id="peMrp" min="0" step="0.01" placeholder="0.00"></div>
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-top:8px" id="priceMarginPreview"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalPriceEdit')">Cancel</button>
+      <button class="btn btn-teal" onclick="saveDrugPrice()">💾 Save Price</button>
+    </div>
+  </div>
+</div>
 
 <!-- DRUG MASTER MODAL -->
 <div class="modal-overlay hidden" id="modalDrug">
@@ -1127,9 +1244,6 @@ tr:last-child td { border-bottom: none; }
 
 <script>
 // ============================================================
-// 🔥 FIREBASE CONFIG — Replace with your project credentials
-// ============================================================
-// ============================================================
 // FIREBASE SYNC ENGINE — identical to HIS (no hardcoded keys)
 // ============================================================
 let fbApp = null, fbDb = null, fbConnected = false;
@@ -1249,7 +1363,8 @@ function initDefaultAccounts() {
   if (getAccounts()) return;
   saveAccounts([
     { username:'admin',   password:'Admin@1234',   name:'Administrator',  role:'admin',    dept:'Administration', protected:true  },
-    { username:'billing', password:'Billing@1234', name:'Billing Account', role:'accounts', dept:'Billing',       protected:false }
+    { username:'billing',    password:'Billing@1234',    name:'Billing Account', role:'accounts',    dept:'Billing',       protected:false },
+    { username:'pharmacist', password:'Pharma@1234',    name:'Pharmacist',      role:'pharmacist',  dept:'Pharmacy',      protected:false }
   ]);
 }
 // ============================================================
@@ -1269,6 +1384,10 @@ let allNarc = [];
 let allAudit = [];
 let allReturns = [];
 let allRates = [];
+let allSales = [];
+let allPricing = {};   // drugKey → { cost, mrp, updatedAt, updatedBy }
+let posCart = [];      // [{ stockKey, drugName, batch, qty, mrp, maxQty }]
+let posPricingEditKey = null;
 let poItemCount = 0;
 let grnItemCount = 0;
 let indentItemCount = 0;
@@ -1400,6 +1519,13 @@ function loadAllData() {
   fbDb.ref(p+'/rate_contracts').on('value', snap => {
     allRates=[]; if(snap.val()) snap.forEach(c=>allRates.push({key:c.key,...c.val()})); renderRates();
   });
+  fbDb.ref(p+'/sales').on('value', snap => {
+    allSales=[]; if(snap.val()) snap.forEach(c=>allSales.push({key:c.key,...c.val()})); renderSales();
+  });
+  fbDb.ref(p+'/drug_pricing').on('value', snap => {
+    allPricing = snap.val() || {};
+    renderPricing();
+  });
 }
 
 function loadDashboard() {
@@ -1408,7 +1534,7 @@ function loadDashboard() {
       <div class="alert-box warn" style="grid-column:1/-1">
         <div style="font-size:14px;font-weight:700;margin-bottom:8px">🔄 Connecting to Firebase…</div>
         <div style="margin-bottom:8px">Please wait — auto-connecting. If this persists, check your internet connection.</div>
-        <button class="btn btn-teal btn-sm" onclick="const c=fbGetConfig(); if(c){fbSetStatus('🟡','Connecting...','#e3b341'); fbInit(c); setTimeout(loadDashboard,1000);} else {navigate('settings');}">🔄 Retry Connection</button>
+        <button class="btn btn-teal btn-sm" onclick="setSyncBadge('connecting'); fbInit(fbGetConfig()); loadDashboard();">🔄 Retry Connection</button>
       </div>`;
     return;
   }
@@ -2714,34 +2840,28 @@ function fbCopyShareLink() {
 
 // Pre-fill Firebase config fields when navigating to settings
 function fbPopulateFields() {
+  // Pre-fill from hardcoded config
   const cfg = fbGetConfig();
-  const box = document.getElementById('fbStatusBox');
-  const txt = document.getElementById('fbStatusText');
-  if (!cfg) {
-    if (box) { box.style.display = 'flex'; box.className = 'alert-box info'; }
-    if (txt) txt.innerHTML = '⚪ Not configured — enter credentials below and click <b>Save &amp; Connect</b>';
-    return;
-  }
   const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
   set('fb_apiKey',     cfg.apiKey);
   set('fb_dbUrl',      cfg.databaseURL);
   set('fb_authDomain', cfg.authDomain);
   set('fb_projectId',  cfg.projectId);
-  if (box) { box.style.display = 'flex'; box.className = fbDb ? 'alert-box success' : 'alert-box info'; }
-  if (txt) txt.innerHTML = fbDb && fbConnected
-    ? '🟢 <b>Connected</b> — syncing in real-time'
-    : (cfg.apiKey ? '⚪ Config saved — click <b>Save &amp; Connect</b> to connect' : '');
+  const box = document.getElementById('fbStatusBox');
+  const txt = document.getElementById('fbStatusText');
+  if (box) box.style.display = 'flex';
+  if (db) {
+    if (txt) txt.innerHTML = '🟢 <b>Auto-connected</b> — all devices sync automatically when they open this file';
+    box.className = 'alert-box success';
+  } else {
+    if (txt) txt.innerHTML = '🟡 Connecting to Firebase…';
+    box.className = 'alert-box warn';
+  }
 }
 
+
+// ── RESTORED FROM BASE ──
 function navigate(module) {
-  const titles = {
-    dashboard:'Dashboard', drugmaster:'Drug Master', itemmaster:'Item Master',
-    stock:'Stock Ledger', vendors:'Vendor Master', purchase:'Purchase Orders',
-    grn:'Goods Receipt (GRN)', indents:'Ward Indents', dispensing:'Drug Dispensing',
-    returns:'Drug Returns', expiry:'Expiry Register', narcotic:'Narcotic Register',
-    lasa:'LASA / High Risk', reports:'Reports', audit:'Audit Trail',
-    users:'User Management', settings:'Settings'
-  };
   document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const el = document.getElementById('mod-' + module);
@@ -2749,10 +2869,13 @@ function navigate(module) {
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'" + module + "'")) n.classList.add('active');
   });
+  const titles = {dashboard:'Dashboard',drugmaster:'Drug Master',itemmaster:'Item Master',stock:'Stock Ledger',vendors:'Vendor Master',purchase:'Purchase Orders',grn:'Goods Receipt (GRN)',indents:'Ward Indents',dispensing:'Drug Dispensing',returns:'Drug Returns',expiry:'Expiry Register',narcotic:'Narcotic Register',lasa:'LASA / High Risk',reports:'Reports',audit:'Audit Trail',users:'User Management',settings:'Settings'};
   const titleEl = document.getElementById('topbarTitle');
   if (titleEl) titleEl.textContent = titles[module] || module;
   if (module === 'settings') fbPopulateFields();
   if (module === 'users') refreshUsersPanel();
+  if (module === 'sales') renderSales();
+  if (module === 'pricing') renderPricing();
 }
 
 function switchTab(moduleKey, tabKey) {
@@ -2804,6 +2927,369 @@ function fbPopulateFields() {
     box.className = 'alert-box warn';
   }
 }
+
+
+// ============================================================
+// DRUG PRICING — Admin-only cost + selling price management
+// ============================================================
+function renderPricing() {
+  const isAdmin = currentUserData && currentUserData.role === 'admin';
+  const tb = document.getElementById('pricingTbody');
+  if (!tb) return;
+  if (!allDrugs.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">No drugs in master. Add drugs first.</td></tr>'; return; }
+  tb.innerHTML = allDrugs.map(d => {
+    const p = allPricing[d.key] || {};
+    const cost = parseFloat(p.cost || 0);
+    const mrp  = parseFloat(p.mrp  || 0);
+    const margin = cost > 0 && mrp > 0 ? (((mrp - cost) / cost) * 100).toFixed(1) : '—';
+    const marginColor = parseFloat(margin) > 30 ? 'var(--green)' : parseFloat(margin) > 0 ? 'var(--amber)' : 'var(--red)';
+    return `<tr>
+      <td><b>${d.generic}</b>${d.brand ? '<br><small style="color:var(--text3)">'+d.brand+'</small>' : ''}</td>
+      <td>${d.form||'—'} ${d.strength||''}</td>
+      <td>${d.unit||'—'}</td>
+      <td style="font-family:var(--mono)">${cost > 0 ? '₹'+cost.toFixed(2) : '<span style="color:var(--text3)">Not set</span>'}</td>
+      <td style="font-family:var(--mono);font-weight:700">${mrp > 0 ? '₹'+mrp.toFixed(2) : '<span style="color:var(--text3)">Not set</span>'}</td>
+      <td style="color:${marginColor}">${margin !== '—' ? margin+'%' : '—'}</td>
+      <td style="font-size:11px;color:var(--text3)">${p.updatedAt ? new Date(p.updatedAt).toLocaleDateString('en-IN') : '—'}</td>
+      <td>${isAdmin ? '<button class="btn btn-outline btn-sm" onclick="openPriceEdit(''+d.key+'',''+d.generic.replace(/'/g,"\'")+'')">✏️ Set Price</button>' : '<span style="color:var(--text3);font-size:12px">View only</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openPriceEdit(drugKey, drugName) {
+  if (currentUserData?.role !== 'admin') { toast('Admin access required','warn'); return; }
+  posPricingEditKey = drugKey;
+  const p = allPricing[drugKey] || {};
+  document.getElementById('priceEditDrugName').textContent = drugName;
+  document.getElementById('peCost').value = p.cost || '';
+  document.getElementById('peMrp').value  = p.mrp  || '';
+  priceMarginUpdate();
+  openModal('modalPriceEdit');
+  document.getElementById('peCost').addEventListener('input', priceMarginUpdate);
+  document.getElementById('peMrp').addEventListener('input', priceMarginUpdate);
+}
+
+function priceMarginUpdate() {
+  const cost = parseFloat(document.getElementById('peCost').value) || 0;
+  const mrp  = parseFloat(document.getElementById('peMrp').value)  || 0;
+  const preview = document.getElementById('priceMarginPreview');
+  if (!preview) return;
+  if (cost > 0 && mrp > 0) {
+    const margin = (((mrp - cost) / cost) * 100).toFixed(1);
+    preview.textContent = `Margin: ${margin}% | Profit per unit: ₹${(mrp - cost).toFixed(2)}`;
+    preview.style.color = parseFloat(margin) > 0 ? 'var(--green)' : 'var(--red)';
+  } else { preview.textContent = ''; }
+}
+
+async function saveDrugPrice() {
+  if (currentUserData?.role !== 'admin') { toast('Admin access required','warn'); return; }
+  const cost = parseFloat(document.getElementById('peCost').value);
+  const mrp  = parseFloat(document.getElementById('peMrp').value);
+  if (isNaN(cost) || cost < 0) { toast('Enter valid cost price','error'); return; }
+  if (isNaN(mrp) || mrp <= 0) { toast('Enter valid selling price','error'); return; }
+  if (mrp < cost) { if (!confirm('Selling price is less than cost price. Continue?')) return; }
+  const entry = { cost, mrp, updatedAt: new Date().toISOString(), updatedBy: currentUserData.username };
+  await fbDb.ref(FB_DATA_PATH+'/drug_pricing/'+posPricingEditKey).set(entry);
+  await logAudit('pricing', 'SET_PRICE', posPricingEditKey, { cost, mrp });
+  toast('Price saved successfully','success');
+  closeModal('modalPriceEdit');
+}
+
+function exportPricingCSV() {
+  const rows = [['Drug','Form','Strength','Unit','Cost (₹)','MRP (₹)','Margin %','Updated']];
+  allDrugs.forEach(d => {
+    const p = allPricing[d.key] || {};
+    const cost = parseFloat(p.cost||0), mrp = parseFloat(p.mrp||0);
+    rows.push([d.generic, d.form||'', d.strength||'', d.unit||'', cost||'', mrp||'',
+      cost>0&&mrp>0?(((mrp-cost)/cost)*100).toFixed(1)+'%':'', p.updatedAt?new Date(p.updatedAt).toLocaleDateString('en-IN'):'']);
+  });
+  downloadCSV(rows, 'drug-pricing.csv');
+}
+
+// ============================================================
+// POINT OF SALE — Pharmacist-facing drug dispensing + billing
+// ============================================================
+function posSearchDrug(query) {
+  const resultsDiv = document.getElementById('posDrugResults');
+  if (!query || query.length < 2) { resultsDiv.style.display='none'; return; }
+  const onlyInStock = document.getElementById('posSearchType').value === 'instock';
+  const q = query.toLowerCase();
+  // Search drugs with pricing AND stock
+  const matches = [];
+  allDrugs.forEach(d => {
+    if (!d.generic.toLowerCase().includes(q) && !(d.brand||'').toLowerCase().includes(q)) return;
+    const pricing = allPricing[d.key];
+    if (!pricing || !pricing.mrp) return; // skip drugs with no price set
+    // Find stock batches for this drug
+    const batches = allStock.filter(s => (s.drugName||'').toLowerCase() === (d.generic||'').toLowerCase() && s.qty > 0);
+    if (onlyInStock && !batches.length) return;
+    matches.push({ drug: d, pricing, batches });
+  });
+  if (!matches.length) {
+    resultsDiv.innerHTML = '<div style="padding:12px;font-size:13px;color:var(--text3)">No drugs found with pricing set. Ask admin to set prices first.</div>';
+    resultsDiv.style.display = 'block'; return;
+  }
+  resultsDiv.innerHTML = matches.slice(0,12).map(m => {
+    const stockInfo = m.batches.length ? m.batches.map(b=>`Batch ${b.batch}: ${b.qty} ${b.unit||''}`).join(' | ') : '<span style="color:var(--red)">Out of stock</span>';
+    return `<div style="padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;hover:background:var(--surface2)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''" onclick="posAddToCart('${m.drug.key}')">
+      <div style="font-weight:600;font-size:13px">${m.drug.generic} ${m.drug.brand?'('+m.drug.brand+')':''}</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:2px">${m.drug.form||''} ${m.drug.strength||''} · MRP: <b style="color:var(--teal)">₹${parseFloat(m.pricing.mrp).toFixed(2)}</b> · ${stockInfo}</div>
+    </div>`;
+  }).join('');
+  resultsDiv.style.display = 'block';
+}
+
+function posAddToCart(drugKey) {
+  const drug = allDrugs.find(d => d.key === drugKey);
+  const pricing = allPricing[drugKey];
+  if (!drug || !pricing) { toast('Drug or price not found','error'); return; }
+  const batches = allStock.filter(s => (s.drugName||'').toLowerCase() === (drug.generic||'').toLowerCase() && s.qty > 0);
+  if (!batches.length) { toast('Drug is out of stock','warn'); return; }
+  // Use first available batch (earliest expiry first)
+  const batch = batches.sort((a,b) => new Date(a.expiry||'9999')-new Date(b.expiry||'9999'))[0];
+  // Check if already in cart
+  const existing = posCart.find(c => c.stockKey === batch.key);
+  if (existing) {
+    if (existing.qty < batch.qty) { existing.qty++; posRenderCart(); }
+    else toast('Max available quantity reached','warn');
+  } else {
+    posCart.push({ stockKey: batch.key, drugKey, drugName: drug.generic, brand: drug.brand||'', batch: batch.batch||'', expiry: batch.expiry||'', qty: 1, mrp: parseFloat(pricing.mrp), maxQty: batch.qty, unit: batch.unit||'', store: batch.store||'' });
+    posRenderCart();
+  }
+  document.getElementById('posDrugSearch').value = '';
+  document.getElementById('posDrugResults').style.display = 'none';
+}
+
+function posRenderCart() {
+  const tb = document.getElementById('posCartBody');
+  const countEl = document.getElementById('posCartCount');
+  if (!posCart.length) {
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Add drugs from search above</td></tr>';
+    if (countEl) countEl.textContent = '0 items';
+    posRecalc(); return;
+  }
+  if (countEl) countEl.textContent = posCart.length + ' item(s)';
+  tb.innerHTML = posCart.map((item, i) => `<tr>
+    <td style="padding:8px">
+      <div style="font-weight:600;font-size:12px">${item.drugName}</div>
+      <div style="font-size:10px;color:var(--text3)">Batch: ${item.batch} | Exp: ${item.expiry} | ${item.store}</div>
+    </td>
+    <td style="padding:8px;text-align:center;font-size:11px;font-family:var(--mono)">${item.batch}</td>
+    <td style="padding:8px;text-align:center">
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px">
+        <button onclick="posQtyChange(${i},-1)" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--surface2)">−</button>
+        <span style="font-weight:700;min-width:30px;text-align:center">${item.qty}</span>
+        <button onclick="posQtyChange(${i},1)" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--surface2)">+</button>
+      </div>
+      <div style="font-size:10px;color:var(--text3);text-align:center">Max: ${item.maxQty}</div>
+    </td>
+    <td style="padding:8px;text-align:right;font-family:var(--mono)">₹${item.mrp.toFixed(2)}</td>
+    <td style="padding:8px;text-align:right;font-family:var(--mono);font-weight:700">₹${(item.mrp * item.qty).toFixed(2)}</td>
+    <td style="padding:8px;text-align:center"><button onclick="posRemoveItem(${i})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:16px">✕</button></td>
+  </tr>`).join('');
+  posRecalc();
+}
+
+function posQtyChange(index, delta) {
+  const item = posCart[index];
+  const newQty = item.qty + delta;
+  if (newQty < 1) { posRemoveItem(index); return; }
+  if (newQty > item.maxQty) { toast('Only '+item.maxQty+' available in stock','warn'); return; }
+  item.qty = newQty;
+  posRenderCart();
+}
+
+function posRemoveItem(index) { posCart.splice(index, 1); posRenderCart(); }
+
+function posRecalc() {
+  const subtotal = posCart.reduce((s, i) => s + i.mrp * i.qty, 0);
+  const discPct  = parseFloat(document.getElementById('posDiscount')?.value||0);
+  const gstPct   = parseFloat(document.getElementById('posGst')?.value||0);
+  const discAmt  = subtotal * discPct / 100;
+  const afterDisc = subtotal - discAmt;
+  const gstAmt   = afterDisc * gstPct / 100;
+  const total    = afterDisc + gstAmt;
+  const set = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
+  set('posSubtotal', '₹'+subtotal.toFixed(2));
+  set('posDiscAmt',  '-₹'+discAmt.toFixed(2));
+  set('posGstAmt',   '₹'+gstAmt.toFixed(2));
+  set('posTotal',    '₹'+total.toFixed(2));
+}
+
+async function posGenerateBill() {
+  const patient  = (document.getElementById('posPatient')?.value||'').trim();
+  const uhid     = (document.getElementById('posUhid')?.value||'').trim();
+  const doctor   = (document.getElementById('posDoctor')?.value||'').trim();
+  const payMode  = document.getElementById('posPayMode')?.value||'Cash';
+  const notes    = (document.getElementById('posNotes')?.value||'').trim();
+  const discPct  = parseFloat(document.getElementById('posDiscount')?.value||0);
+  const gstPct   = parseFloat(document.getElementById('posGst')?.value||0);
+  if (!patient)      { toast('Patient name is required','error'); return; }
+  if (!posCart.length) { toast('Cart is empty — add drugs first','error'); return; }
+  const subtotal  = posCart.reduce((s,i) => s + i.mrp * i.qty, 0);
+  const discAmt   = subtotal * discPct / 100;
+  const afterDisc = subtotal - discAmt;
+  const gstAmt    = afterDisc * gstPct / 100;
+  const total     = afterDisc + gstAmt;
+  const billNo    = 'BILL-' + Date.now().toString().slice(-8);
+  const now       = new Date();
+  const bill = {
+    billNo, patient, uhid, doctor,
+    items: posCart.map(i => ({ drugName:i.drugName, brand:i.brand, batch:i.batch, expiry:i.expiry, qty:i.qty, mrp:i.mrp, amount:+(i.mrp*i.qty).toFixed(2), unit:i.unit, store:i.store, stockKey:i.stockKey })),
+    subtotal:+subtotal.toFixed(2), discountPct:discPct, discountAmt:+discAmt.toFixed(2),
+    gstPct, gstAmt:+gstAmt.toFixed(2), total:+total.toFixed(2),
+    paymentMode:payMode, notes, soldBy:currentUserData.username, soldByName:currentUserData.name,
+    createdAt:now.toISOString()
+  };
+  // Save bill
+  const billRef = await fbDb.ref(FB_DATA_PATH+'/sales').push(bill);
+  // Deduct stock for each item
+  for (const item of posCart) {
+    const stockItem = allStock.find(s => s.key === item.stockKey);
+    if (stockItem) {
+      const newQty = Math.max(0, (stockItem.qty||0) - item.qty);
+      await fbDb.ref(FB_DATA_PATH+'/stock/'+item.stockKey).update({ qty:newQty, updatedAt:now.toISOString() });
+    }
+  }
+  await logAudit('sales','BILL_GENERATED', billRef.key, { billNo, patient, total, items:posCart.length });
+  toast('Bill generated! Stock updated.','success');
+  // Show bill
+  showBillModal({ ...bill, key: billRef.key });
+  posClearCart();
+}
+
+function posClearCart() {
+  posCart = [];
+  posRenderCart();
+  ['posPatient','posUhid','posDoctor','posNotes','posDiscount','posGst'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = id === 'posDiscount' || id === 'posGst' ? '0' : '';
+  });
+  if (document.getElementById('posPayMode')) document.getElementById('posPayMode').value = 'Cash';
+}
+
+// ============================================================
+// BILL PRINT
+// ============================================================
+function showBillModal(bill) {
+  const items = bill.items || [];
+  const area = document.getElementById('billPrintArea');
+  const hospName = document.getElementById('setHospName')?.value || 'Chandrawati Hospital';
+  const hospAddr = document.getElementById('setHospAddr')?.value || 'GT Road, Barwadda, Dhanbad';
+  const license  = document.getElementById('setLicense')?.value  || '';
+  area.innerHTML = `
+    <style>@media print { .no-print{display:none!important} .modal-overlay{position:static!important} body>*:not(#modalBill){display:none!important} }</style>
+    <div style="text-align:center;border-bottom:2px solid #1e293b;padding-bottom:12px;margin-bottom:16px">
+      <div style="font-size:20px;font-weight:800;color:#1e293b">✚ ${hospName}</div>
+      <div style="font-size:12px;color:#64748b">${hospAddr}</div>
+      ${license ? `<div style="font-size:11px;color:#64748b">Drug License: ${license}</div>` : ''}
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:14px;font-size:12px">
+      <div>
+        <div><b>Bill No:</b> ${bill.billNo}</div>
+        <div><b>Date:</b> ${new Date(bill.createdAt).toLocaleString('en-IN')}</div>
+        <div><b>Payment:</b> ${bill.paymentMode}</div>
+      </div>
+      <div style="text-align:right">
+        <div><b>Patient:</b> ${bill.patient}</div>
+        ${bill.uhid ? `<div><b>UHID:</b> ${bill.uhid}</div>` : ''}
+        ${bill.doctor ? `<div><b>Doctor:</b> ${bill.doctor}</div>` : ''}
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px">
+      <thead><tr style="background:#f1f5f9">
+        <th style="padding:8px;text-align:left;border:1px solid #e2e8f0">#</th>
+        <th style="padding:8px;text-align:left;border:1px solid #e2e8f0">Drug</th>
+        <th style="padding:8px;text-align:center;border:1px solid #e2e8f0">Batch</th>
+        <th style="padding:8px;text-align:center;border:1px solid #e2e8f0">Expiry</th>
+        <th style="padding:8px;text-align:center;border:1px solid #e2e8f0">Qty</th>
+        <th style="padding:8px;text-align:right;border:1px solid #e2e8f0">MRP</th>
+        <th style="padding:8px;text-align:right;border:1px solid #e2e8f0">Amount</th>
+      </tr></thead>
+      <tbody>${items.map((item,i) => `<tr>
+        <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:center">${i+1}</td>
+        <td style="padding:7px 8px;border:1px solid #e2e8f0"><b>${item.drugName}</b>${item.brand?'<br><small style="color:#64748b">'+item.brand+'</small>':''}</td>
+        <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:center;font-family:monospace">${item.batch||'—'}</td>
+        <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:center">${item.expiry||'—'}</td>
+        <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:center">${item.qty} ${item.unit||''}</td>
+        <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right">₹${parseFloat(item.mrp).toFixed(2)}</td>
+        <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;font-weight:600">₹${parseFloat(item.amount).toFixed(2)}</td>
+      </tr>`).join('')}</tbody>
+    </table>
+    <div style="display:flex;justify-content:flex-end">
+      <div style="min-width:240px;font-size:13px">
+        <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e2e8f0"><span>Subtotal</span><span>₹${bill.subtotal.toFixed(2)}</span></div>
+        ${bill.discountAmt>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;color:#dc2626;border-bottom:1px solid #e2e8f0"><span>Discount (${bill.discountPct}%)</span><span>-₹${bill.discountAmt.toFixed(2)}</span></div>`:''}
+        ${bill.gstAmt>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e2e8f0"><span>GST (${bill.gstPct}%)</span><span>₹${bill.gstAmt.toFixed(2)}</span></div>`:''}
+        <div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:800;font-size:16px;border-top:2px solid #1e293b"><span>TOTAL</span><span>₹${bill.total.toFixed(2)}</span></div>
+      </div>
+    </div>
+    ${bill.notes?`<div style="margin-top:10px;font-size:12px;color:#64748b"><b>Notes:</b> ${bill.notes}</div>`:''}
+    <div style="margin-top:20px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px">
+      Sold by: ${bill.soldByName||bill.soldBy} · ${hospName} · Thank you!
+    </div>`;
+  openModal('modalBill');
+}
+
+function printBill() { window.print(); }
+
+// ============================================================
+// SALES REGISTER
+// ============================================================
+function renderSales() {
+  const tb = document.getElementById('salesTbody');
+  if (!tb) return;
+  let sales = [...allSales].sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt));
+  // Date filter
+  const from = document.getElementById('salesDateFrom')?.value;
+  const to   = document.getElementById('salesDateTo')?.value;
+  if (from) sales = sales.filter(s => s.createdAt >= from);
+  if (to)   sales = sales.filter(s => s.createdAt <= to+'T23:59:59');
+  // Summary bar
+  const summaryBar = document.getElementById('salesSummaryBar');
+  if (summaryBar) {
+    const total   = sales.reduce((s,b) => s + (b.total||0), 0);
+    const count   = sales.length;
+    const today   = sales.filter(s => new Date(s.createdAt).toDateString() === new Date().toDateString());
+    const todayAmt = today.reduce((s,b) => s + (b.total||0), 0);
+    summaryBar.innerHTML = `
+      <div class="stat-card stat-teal"><div class="stat-icon">🧾</div><div class="stat-info"><p>${count}</p><span>Total Bills</span></div></div>
+      <div class="stat-card stat-green"><div class="stat-icon">₹</div><div class="stat-info"><p>₹${total.toFixed(0)}</p><span>Total Revenue</span></div></div>
+      <div class="stat-card stat-blue"><div class="stat-icon">📅</div><div class="stat-info"><p>${today.length}</p><span>Today's Bills</span></div></div>
+      <div class="stat-card stat-purple"><div class="stat-icon">₹</div><div class="stat-info"><p>₹${todayAmt.toFixed(0)}</p><span>Today's Revenue</span></div></div>`;
+  }
+  if (!sales.length) { tb.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:24px">No sales found</td></tr>'; return; }
+  const isAdmin = currentUserData?.role === 'admin';
+  tb.innerHTML = sales.map(s => `<tr>
+    <td style="font-family:var(--mono);font-size:11px">${s.billNo}</td>
+    <td style="font-size:11px">${new Date(s.createdAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
+    <td><b>${s.patient}</b></td>
+    <td style="font-size:11px">${s.uhid||'—'}</td>
+    <td>${(s.items||[]).length} item(s)</td>
+    <td style="font-family:var(--mono)">₹${(s.subtotal||0).toFixed(2)}</td>
+    <td style="font-family:var(--mono);color:var(--red)">${s.discountAmt>0?'-₹'+s.discountAmt.toFixed(2):'—'}</td>
+    <td style="font-family:var(--mono)">${s.gstAmt>0?'₹'+s.gstAmt.toFixed(2):'—'}</td>
+    <td style="font-family:var(--mono);font-weight:700;color:var(--teal)">₹${(s.total||0).toFixed(2)}</td>
+    <td><span class="badge badge-teal">${s.paymentMode||'—'}</span></td>
+    <td style="font-size:11px">${s.soldBy||'—'}</td>
+    <td><button class="btn btn-outline btn-sm" onclick="showBillModal(allSales.find(x=>x.key==='${s.key}'))">🖨️ Print</button></td>
+  </tr>`).join('');
+}
+
+function exportSalesCSV() {
+  const rows = [['Bill No','Date','Patient','UHID','Items','Subtotal','Discount','GST','Total','Payment','Sold By']];
+  allSales.forEach(s => rows.push([s.billNo, new Date(s.createdAt).toLocaleString('en-IN'), s.patient, s.uhid||'', (s.items||[]).length, s.subtotal, s.discountAmt||0, s.gstAmt||0, s.total, s.paymentMode, s.soldBy]));
+  downloadCSV(rows, 'sales-register.csv');
+}
+
+function downloadCSV(rows, filename) {
+  const csv = rows.map(r => r.map(c => '"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download = filename; a.click();
+}
+
+// ── RBAC on drug master edit buttons ──
+function isDrugMasterEditable() { return currentUserData?.role === 'admin'; }
 
 </script>
 </body>
