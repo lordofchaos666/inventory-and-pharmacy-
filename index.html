@@ -754,8 +754,8 @@ tr:last-child td { border-bottom: none; }
             <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Firebase Console → Realtime Database → Rules → paste → Publish:</div>
             <pre style="background:#1e2a3a;color:#4db6ac;padding:14px;border-radius:6px;font-family:var(--mono);font-size:13px;overflow-x:auto">{
   "rules": {
-    ".read": true,
-    ".write": true
+    ".read": "now < 1775673000000",  // 2026-4-9
+    ".write": "now < 1775673000000"  // 2026-4-9
   }
 }</pre>
             <div class="alert-box success" style="margin-top:10px">✅ Default credentials: <b>admin</b> / Admin@1234 &nbsp;·&nbsp; <b>billing</b> / Billing@1234</div>
@@ -1113,46 +1113,52 @@ tr:last-child td { border-bottom: none; }
 // 🔥 FIREBASE CONFIG — Replace with your project credentials
 // ============================================================
 // ============================================================
-// FIREBASE — config loaded from localStorage (entered via Settings)
-// No Firebase Auth — same pattern as HIS. DB in test mode.
+// FIREBASE SYNC ENGINE — no hardcoded credentials (same pattern as HIS)
+// Config stored in localStorage or passed via URL hash share link
 // ============================================================
 let db = null;
+const FB_CFG_KEY = 'pharma_fb_config_v1';
 
-// ============================================================
-// FIREBASE — HARDCODED CONFIG — auto-connects for ALL users
-// No setup needed. Anyone who opens the file is synced.
-// ============================================================
-const FIREBASE_CONFIG = {
-  apiKey:        "FIREBASE_KEY_REDACTED",
-  databaseURL:   "https://pharmacy-and-inventory-default-rtdb.asia-southeast1.firebasedatabase.app",
-  authDomain:    "pharmacy-and-inventory.firebaseapp.com",
-  projectId:     "pharmacy-and-inventory",
-  storageBucket: "pharmacy-and-inventory.firebasestorage.app",
-  messagingSenderId: "382444275537",
-  appId:         "1:382444275537:web:ae5aed5d8c292c2b4f7570"
-};
+// BAKED-IN CONFIG — always null in source code. Keys never committed to git.
+// To auto-connect all devices: Settings → Copy Share Link → open on device.
+const FIREBASE_BAKED_CONFIG = null;
 
-function getStoredConfig() { return FIREBASE_CONFIG; }  // always returns hardcoded config
+function getStoredConfig() {
+  if (FIREBASE_BAKED_CONFIG && FIREBASE_BAKED_CONFIG.apiKey) return FIREBASE_BAKED_CONFIG;
+  try {
+    const local = JSON.parse(localStorage.getItem(FB_CFG_KEY) || 'null');
+    if (local && local.apiKey) return local;
+  } catch(e) {}
+  return null;
+}
+
+// URL hash bootstrap: Admin shares URL#cfg=base64 → device auto-saves & connects
+function fbCheckUrlHash() {
+  try {
+    const hash = window.location.hash;
+    if (!hash || !hash.includes('cfg=')) return null;
+    const b64 = hash.split('cfg=')[1].split('&')[0];
+    const cfg = JSON.parse(atob(b64));
+    if (!cfg || !cfg.apiKey || !cfg.databaseURL) return null;
+    localStorage.setItem(FB_CFG_KEY, JSON.stringify(cfg));
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    return cfg;
+  } catch(e) { return null; }
+}
 
 function initFirebase(cfg) {
   if (!cfg || !cfg.apiKey || !cfg.databaseURL) return false;
   try {
     if (firebase.apps.length === 0) { firebase.initializeApp(cfg); }
     db = firebase.app().database();
-    // Real-time connection monitor — fires immediately
     db.ref('.info/connected').on('value', snap => {
       const v = snap.val();
       if (v === true)       setSyncBadge('connected');
       else if (v === false) setSyncBadge('disconnected');
-      // v === null = SDK initialising, stay on connecting
     });
     setSyncBadge('connecting');
     return true;
-  } catch(e) {
-    console.error('Firebase init error:', e);
-    setSyncBadge('error');
-    return false;
-  }
+  } catch(e) { console.error('Firebase init error:', e); setSyncBadge('error'); return false; }
 }
 
 function setSyncBadge(state) {
@@ -1222,9 +1228,9 @@ let editingDrugKey = null;
 
 window.addEventListener('DOMContentLoaded', () => {
   initDefaultAccounts();
-  // Firebase connects silently in background via anonymous auth
-  try { initFirebase(FIREBASE_CONFIG); } catch(e) { console.error('Firebase init failed:', e); }
-  // Always show login — no auto-bypass
+  const hashCfg = fbCheckUrlHash();
+  if (hashCfg) { initFirebase(hashCfg); }
+  else { const cfg = getStoredConfig(); if (cfg) initFirebase(cfg); else setSyncBadge('local'); }
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('loginUsername').focus();
@@ -1416,7 +1422,7 @@ function loadDashboard() {
       <div class="alert-box warn" style="grid-column:1/-1">
         <div style="font-size:14px;font-weight:700;margin-bottom:8px">🔄 Connecting to Firebase…</div>
         <div style="margin-bottom:8px">Please wait — auto-connecting. If this persists, check your internet connection.</div>
-        <button class="btn btn-teal btn-sm" onclick="setSyncBadge('connecting'); initFirebase(FIREBASE_CONFIG); loadDashboard();">🔄 Retry Connection</button>
+        <button class="btn btn-teal btn-sm" onclick="setSyncBadge('connecting'); initFirebase(getStoredConfig()); loadDashboard();">🔄 Retry Connection</button>
       </div>`;
     return;
   }
@@ -2644,7 +2650,7 @@ document.addEventListener('keydown', function(e) {
 function fbSaveConfig() {
   // With hardcoded config this just re-connects
   setSyncBadge('connecting');
-  const ok = initFirebase(FIREBASE_CONFIG);
+  const ok = initFirebase(getStoredConfig());
   const box = document.getElementById('fbStatusBox');
   const txt = document.getElementById('fbStatusText');
   if (box) box.style.display = 'flex';
@@ -2680,7 +2686,7 @@ async function fbTestConnection() {
 
 function fbClearConfig() {
   if (!confirm('Disconnect Firebase? Data will no longer sync.')) return;
-  localStorage.removeItem('pharma_fb_config');
+  localStorage.removeItem(FB_CFG_KEY);
   db = null;
   setSyncBadge('local');
   const box = document.getElementById('fbStatusBox');
@@ -2692,47 +2698,17 @@ function fbClearConfig() {
 
 function fbCopyShareLink() {
   const cfg = getStoredConfig();
-  if (!cfg) { toast('Configure Firebase first, then copy share link','warn'); return; }
-  const base = window.location.href.split('?')[0];
-  const params = new URLSearchParams();
-  if (cfg.apiKey)      params.set('apiKey', cfg.apiKey);
-  if (cfg.databaseURL) params.set('databaseURL', cfg.databaseURL);
-  if (cfg.authDomain)  params.set('authDomain', cfg.authDomain);
-  if (cfg.projectId)   params.set('projectId', cfg.projectId);
-  const shareUrl = base + '?' + params.toString();
-  navigator.clipboard.writeText(shareUrl).then(() => {
-    toast('✅ Share link copied! Send via WhatsApp/SMS — opening it auto-connects any device','success');
-    const box = document.getElementById('shareLinkBox');
-    if (box) { box.style.display = 'block'; box.textContent = shareUrl; }
-  }).catch(() => {
-    // Fallback for non-clipboard environments
-    const box = document.getElementById('shareLinkBox');
-    if (box) { box.style.display = 'block'; box.textContent = shareUrl; }
-    toast('Copy the link above manually','warn');
-  });
-}
-
-// Pre-fill Firebase config fields when navigating to settings
-function loadFbConfigFields() {
-  // Pre-fill from hardcoded config
-  const cfg = FIREBASE_CONFIG;
-  const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
-  set('fb_apiKey',     cfg.apiKey);
-  set('fb_dbUrl',      cfg.databaseURL);
-  set('fb_authDomain', cfg.authDomain);
-  set('fb_projectId',  cfg.projectId);
-  const box = document.getElementById('fbStatusBox');
-  const txt = document.getElementById('fbStatusText');
-  if (box) box.style.display = 'flex';
-  if (db) {
-    if (txt) txt.innerHTML = '🟢 <b>Auto-connected</b> — all devices sync automatically when they open this file';
-    box.className = 'alert-box success';
+  if (!cfg || !cfg.apiKey) { toast('Save Firebase config first','warn'); return; }
+  const encoded = btoa(JSON.stringify(cfg));
+  const shareUrl = window.location.href.split('#')[0] + '#cfg=' + encoded;
+  const box = document.getElementById('shareLinkBox');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      toast('✅ Share link copied — open on any device to auto-connect','success');
+      if (box) { box.style.display = 'block'; box.textContent = shareUrl; }
+    }).catch(() => { prompt('Copy and open on any device:', shareUrl); });
   } else {
-    if (txt) txt.innerHTML = '🟡 Connecting to Firebase…';
-    box.className = 'alert-box warn';
+    prompt('Copy and open on any device:', shareUrl);
+    if (box) { box.style.display = 'block'; box.textContent = shareUrl; }
   }
 }
-
-</script>
-</body>
-</html>
