@@ -754,8 +754,8 @@ tr:last-child td { border-bottom: none; }
             <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Firebase Console → Realtime Database → Rules → paste → Publish:</div>
             <pre style="background:#1e2a3a;color:#4db6ac;padding:14px;border-radius:6px;font-family:var(--mono);font-size:13px;overflow-x:auto">{
   "rules": {
-    ".read": true,
-    ".write": true
+    ".read":  "auth != null",
+    ".write": "auth != null"
   }
 }</pre>
             <div class="alert-box success" style="margin-top:10px">✅ Default credentials: <b>admin</b> / Admin@1234 &nbsp;·&nbsp; <b>billing</b> / Billing@1234</div>
@@ -1106,6 +1106,7 @@ tr:last-child td { border-bottom: none; }
 
 <!-- FIREBASE SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
@@ -1123,13 +1124,13 @@ let db = null;
 // No setup needed. Anyone who opens the file is synced.
 // ============================================================
 const FIREBASE_CONFIG = {
-  apiKey:        "FIREBASE_API_KEY",
-  databaseURL:   "https://FIREBASE_DB_URL",
-  authDomain:    "FIREBASE_AUTH_DOMAIN",
+  apiKey:        "FIREBASE_KEY_REDACTED",
+  databaseURL:   "https://pharmacy-and-inventory-default-rtdb.firebaseio.com",
+  authDomain:    "pharmacy-and-inventory.firebaseapp.com",
   projectId:     "pharmacy-and-inventory",
-  storageBucket: "FIREBASE_STORAGE_BUCKET",
-  messagingSenderId: "FIREBASE_SENDER_ID",
-  appId:         "1:FIREBASE_SENDER_ID:web:FIREBASE_APP_HASH"
+  storageBucket: "pharmacy-and-inventory.firebasestorage.app",
+  messagingSenderId: "382444275537",
+  appId:         "1:382444275537:web:ae5aed5d8c292c2b4f7570"
 };
 
 function getStoredConfig() { return FIREBASE_CONFIG; }  // always returns hardcoded config
@@ -1137,16 +1138,20 @@ function getStoredConfig() { return FIREBASE_CONFIG; }  // always returns hardco
 function initFirebase(cfg) {
   if (!cfg || !cfg.apiKey || !cfg.databaseURL) return false;
   try {
-    if (firebase.apps.length > 0) {
-      try { db = firebase.app().database(cfg.databaseURL); }
-      catch(e) { db = firebase.app().database(); }
-    } else {
-      firebase.initializeApp(cfg);
-      db = firebase.database();
-    }
-    // Real-time connectivity monitor → updates the sync badge automatically
-    db.ref('.info/connected').on('value', snap => {
-      setSyncBadge(snap.val() === true ? 'connected' : 'disconnected');
+    if (firebase.apps.length === 0) { firebase.initializeApp(cfg); }
+    db = firebase.app().database();
+    // Anonymous auth → enables "auth != null" DB rules, blocks all external access
+    firebase.auth().onAuthStateChanged(user => {
+      if (user) {
+        db.ref('.info/connected').on('value', snap => {
+          setSyncBadge(snap.val() === true ? 'connected' : 'disconnected');
+        });
+      } else {
+        firebase.auth().signInAnonymously().catch(e => {
+          console.error('Anonymous auth failed:', e);
+          setSyncBadge('error');
+        });
+      }
     });
     setSyncBadge('connecting');
     return true;
@@ -1224,33 +1229,12 @@ let editingDrugKey = null;
 
 window.addEventListener('DOMContentLoaded', () => {
   initDefaultAccounts();
-
-  // ── Firebase auto-connects immediately for ALL users — config is hardcoded ──
-  setSyncBadge('connecting');
-  initFirebase(FIREBASE_CONFIG);
-
-  // Restore session
-  try {
-    const session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
-    if (session && session.username) {
-      // Verify account still exists
-      const accounts = getAccounts() || [];
-      const acct = accounts.find(a => a.username === session.username);
-      if (acct && !acct.disabled) {
-        currentUser     = { uid: session.username, username: session.username };
-        currentUserData = { ...acct };
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
-        // Firebase always connected — load data
-        if (!db) { setSyncBadge('connecting'); initFirebase(FIREBASE_CONFIG); }
-        loadAllData(); loadDashboard(); buildReportButtons();
-        return;
-      }
-    }
-  } catch(e) {}
-
+  // Firebase connects silently in background via anonymous auth
+  try { initFirebase(FIREBASE_CONFIG); } catch(e) { console.error('Firebase init failed:', e); }
+  // Always show login — no auto-bypass
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
+  document.getElementById('loginUsername').focus();
 });
 
 function showErr(msg) {
@@ -1261,25 +1245,17 @@ function showErr(msg) {
 async function doLogin() {
   const username = (document.getElementById('loginUsername').value || '').trim().toLowerCase();
   const pass     = (document.getElementById('loginPassword').value || '');
-  const btn      = document.getElementById('loginBtn');
   showErr('');
   if (!username) { showErr('Enter your username.'); return; }
   if (!pass)     { showErr('Enter your password.'); return; }
-
   const accounts = getAccounts() || [];
   const acct = accounts.find(a => a.username === username);
-  if (!acct)            { showErr('Invalid username or password.'); return; }
-  if (acct.disabled)    { showErr('Account disabled. Contact admin.'); return; }
+  if (!acct)             { showErr('Invalid username or password.'); return; }
+  if (acct.disabled)     { showErr('Account disabled. Contact admin.'); return; }
   if (acct.password !== pass) { showErr('Invalid username or password.'); return; }
-
-  // Save session
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ ...acct }));
+  // In-memory session only — no localStorage persistence
   currentUser     = { uid: username, username };
   currentUserData = { ...acct };
-
-  // Firebase is always connected (hardcoded config) — reinforce listeners if needed
-  if (!db) { setSyncBadge('connecting'); initFirebase(FIREBASE_CONFIG); }
-
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   initApp();
@@ -1287,14 +1263,14 @@ async function doLogin() {
 
 async function doLogout() {
   try { await logAudit('auth', 'LOGOUT', currentUserData?.username || '', ''); } catch(e) {}
-  localStorage.removeItem(SESSION_KEY);
   currentUser = null; currentUserData = null;
-  setSyncBadge(db ? 'connected' : 'local');
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('loginUsername').value = '';
   document.getElementById('loginPassword').value = '';
+  document.getElementById('loginUsername').focus();
 }
+
 // ============================================================
 // INIT APP
 // ============================================================
@@ -2421,10 +2397,7 @@ async function changePassword() {
   accounts[idx].passwordChangedBy = currentUserData.username;
   saveAccounts(accounts);
   // Update session if changing own password
-  if (username === currentUserData.username) {
-    const session = JSON.parse(localStorage.getItem(SESSION_KEY)||'null');
-    if (session) { session.password = newPass; localStorage.setItem(SESSION_KEY, JSON.stringify(session)); }
-  }
+  // Session is in-memory only
   await logAudit('users', 'CHANGE_PASSWORD', username, { by: currentUserData.username });
   toast('Password changed for: ' + username,'success');
   ['cpUsername','cpNewPass','cpConfPass'].forEach(id => { document.getElementById(id).value = ''; });
