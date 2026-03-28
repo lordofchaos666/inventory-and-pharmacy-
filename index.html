@@ -1192,6 +1192,10 @@ function setSyncBadge(state) {
 }
 
 function fbInit(cfg) {
+  if (!cfg || !cfg.apiKey || !cfg.databaseURL) {
+    fbSetStatus('❌','No config — go to Settings and enter Firebase credentials','#f85149');
+    return false;
+  }
   try {
     if (fbApp) { try { fbApp.delete(); } catch(e) {} fbApp=null; fbDb=null; fbConnected=false; }
     fbApp = firebase.initializeApp(cfg, 'pharma_' + Date.now());
@@ -1387,7 +1391,7 @@ function loadDashboard() {
       <div class="alert-box warn" style="grid-column:1/-1">
         <div style="font-size:14px;font-weight:700;margin-bottom:8px">🔄 Connecting to Firebase…</div>
         <div style="margin-bottom:8px">Please wait — auto-connecting. If this persists, check your internet connection.</div>
-        <button class="btn btn-teal btn-sm" onclick="setSyncBadge('connecting'); fbInit(fbGetConfig()); loadDashboard();">🔄 Retry Connection</button>
+        <button class="btn btn-teal btn-sm" onclick="const c=fbGetConfig(); if(c){fbSetStatus('🟡','Connecting...','#e3b341'); fbInit(c); setTimeout(loadDashboard,1000);} else {navigate('settings');}">🔄 Retry Connection</button>
       </div>`;
     return;
   }
@@ -2613,15 +2617,23 @@ document.addEventListener('keydown', function(e) {
 // FIREBASE CONFIG — Save/Load/Test (matches HIS pattern)
 // ============================================================
 function fbSaveConfig() {
-  // With hardcoded config this just re-connects
-  setSyncBadge('connecting');
-  const ok = fbInit(fbGetConfig());
+  const apiKey      = (document.getElementById('fb_apiKey')||{value:''}).value.trim();
+  const databaseURL = (document.getElementById('fb_dbUrl')||{value:''}).value.trim();
+  const authDomain  = (document.getElementById('fb_authDomain')||{value:''}).value.trim();
+  const projectId   = (document.getElementById('fb_projectId')||{value:''}).value.trim();
+  if (!apiKey || !databaseURL) { toast('API Key and Database URL are required','error'); return; }
+  const cfg = { apiKey, databaseURL };
+  if (authDomain) cfg.authDomain = authDomain;
+  if (projectId)  cfg.projectId  = projectId;
+  localStorage.setItem(FB_CFG_KEY, JSON.stringify(cfg));
+  fbSetStatus('🟡','Connecting...','#e3b341');
+  const ok = fbInit(cfg);
   const box = document.getElementById('fbStatusBox');
   const txt = document.getElementById('fbStatusText');
   if (box) box.style.display = 'flex';
   if (ok) {
-    if (txt) txt.innerHTML = '✅ Connected — data will sync in real-time across all devices';
-    toast('Firebase connected — syncing data…','success');
+    if (txt) txt.innerHTML = '✅ Connected — data syncing in real-time across all devices';
+    toast('Firebase connected — syncing…','success');
     loadAllData(); loadDashboard(); buildReportButtons();
   } else {
     if (txt) txt.textContent = '❌ Connection failed — check credentials';
@@ -2685,27 +2697,25 @@ function fbCopyShareLink() {
 
 // Pre-fill Firebase config fields when navigating to settings
 function fbPopulateFields() {
-  // Pre-fill from hardcoded config
-  const cfg = FIREBASE_CONFIG;
+  const cfg = fbGetConfig();
+  const box = document.getElementById('fbStatusBox');
+  const txt = document.getElementById('fbStatusText');
+  if (!cfg) {
+    if (box) { box.style.display = 'flex'; box.className = 'alert-box info'; }
+    if (txt) txt.innerHTML = '⚪ Not configured — enter credentials below and click <b>Save &amp; Connect</b>';
+    return;
+  }
   const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
   set('fb_apiKey',     cfg.apiKey);
   set('fb_dbUrl',      cfg.databaseURL);
   set('fb_authDomain', cfg.authDomain);
   set('fb_projectId',  cfg.projectId);
-  const box = document.getElementById('fbStatusBox');
-  const txt = document.getElementById('fbStatusText');
-  if (box) box.style.display = 'flex';
-  if (db) {
-    if (txt) txt.innerHTML = '🟢 <b>Auto-connected</b> — all devices sync automatically when they open this file';
-    box.className = 'alert-box success';
-  } else {
-    if (txt) txt.innerHTML = '🟡 Connecting to Firebase…';
-    box.className = 'alert-box warn';
-  }
+  if (box) { box.style.display = 'flex'; box.className = fbDb ? 'alert-box success' : 'alert-box info'; }
+  if (txt) txt.innerHTML = fbDb && fbConnected
+    ? '🟢 <b>Connected</b> — syncing in real-time'
+    : (cfg.apiKey ? '⚪ Config saved — click <b>Save &amp; Connect</b> to connect' : '');
 }
 
-
-// ── RESTORED FROM BASE ──
 function navigate(module) {
   document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -2751,7 +2761,7 @@ function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
 function fbPopulateFields() {
   // Pre-fill from hardcoded config
-  const cfg = FIREBASE_CONFIG;
+  const cfg = fbGetConfig();
   const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
   set('fb_apiKey',     cfg.apiKey);
   set('fb_dbUrl',      cfg.databaseURL);
