@@ -387,7 +387,7 @@ tr:last-child td { border-bottom: none; }
               <div><div class="card-title">💊 Drug Master</div><div class="card-subtitle">Generic & brand drug registry</div></div>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-outline btn-sm" onclick="exportTableCSV('drugTable','drug_master')">⬇ Export</button>
-                <button class="btn btn-teal btn-sm" id="btnAddDrug" onclick="openModal('modalDrug')">+ Add Drug</button>
+                <button class="btn btn-teal btn-sm" id="btnAddDrug" style="display:none" onclick="openModal('modalDrug')">+ Add Drug</button>
               </div>
             </div>
             <div class="search-bar">
@@ -1460,9 +1460,17 @@ function initApp() {
   setInterval(() => {
     document.getElementById('topbarDate').textContent = new Date().toLocaleString('en-IN');
   }, 1000);
-  loadAllData();
+  if (fbDb && fbConnected) loadAllData();
   loadDashboard();
   buildReportButtons();
+  // RBAC: show/hide admin-only nav
+  const _isAdm = currentUserData && currentUserData.role === 'admin';
+  ['btnAddDrug','btnAddItem','btnDrugPricing'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = _isAdm ? '' : 'none';
+  });
+  const navPricing = document.getElementById('navPricing');
+  if (navPricing) navPricing.style.display = _isAdm ? '' : 'none';
 }
 
 async function logAudit(module, action, recordId, details) {
@@ -2671,7 +2679,7 @@ function formatMoney(n) { if (!n) return '0'; return parseFloat(n).toLocaleStrin
 // ============================================================
 const roleAccess = {
   admin: ['all'],
-  pharmacist: ['dashboard','drugmaster','itemmaster','stock','dispensing','indents','expiry','narcotic','lasa','reports','audit'],
+  pharmacist: ['dashboard','drugmaster','itemmaster','stock','dispensing','indents','returns','expiry','narcotic','lasa','reports','audit','pos','sales'],
   store_manager: ['dashboard','drugmaster','itemmaster','stock','vendors','purchase','grn','indents','expiry','reports','audit'],
   nurse: ['dashboard','indents','dispensing'],
   doctor: ['dashboard','indents'],
@@ -2724,8 +2732,9 @@ document.addEventListener('keydown', function(e) {
   if (tag !== 'INPUT' && tag !== 'SELECT') return;
   e.preventDefault();
 
-  // Find the enclosing modal or form context
-  const container = e.target.closest('.modal-box, .login-card, .card');
+  // Find the enclosing modal or form context — login-card takes priority
+  const loginCard = e.target.closest('.login-card');
+  const container = loginCard || e.target.closest('.modal-box') || e.target.closest('.card');
   if (!container) return;
 
   // All focusable fields in this container
@@ -2869,7 +2878,7 @@ function navigate(module) {
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'" + module + "'")) n.classList.add('active');
   });
-  const titles = {dashboard:'Dashboard',drugmaster:'Drug Master',itemmaster:'Item Master',stock:'Stock Ledger',vendors:'Vendor Master',purchase:'Purchase Orders',grn:'Goods Receipt (GRN)',indents:'Ward Indents',dispensing:'Drug Dispensing',returns:'Drug Returns',expiry:'Expiry Register',narcotic:'Narcotic Register',lasa:'LASA / High Risk',reports:'Reports',audit:'Audit Trail',users:'User Management',settings:'Settings'};
+  const titles = {dashboard:'Dashboard',drugmaster:'Drug Master',itemmaster:'Item Master',stock:'Stock Ledger',vendors:'Vendor Master',purchase:'Purchase Orders',grn:'Goods Receipt (GRN)',indents:'Ward Indents',dispensing:'Drug Dispensing',returns:'Drug Returns',expiry:'Expiry Register',narcotic:'Narcotic Register',lasa:'LASA / High Risk',reports:'Reports',audit:'Audit Trail',users:'User Management',settings:'Settings',pos:'Point of Sale',sales:'Sales Register',pricing:'Drug Pricing'};
   const titleEl = document.getElementById('topbarTitle');
   if (titleEl) titleEl.textContent = titles[module] || module;
   if (module === 'settings') fbPopulateFields();
