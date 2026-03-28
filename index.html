@@ -1,3 +1,5 @@
+[Reading 3396 lines from start (total: 3396 lines, 0 remaining)]
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -302,37 +304,37 @@ tr:last-child td { border-bottom: none; }
         <div class="nav-section">Main</div>
         <div class="nav-item active" onclick="navigate('dashboard')"><span class="nav-icon">📊</span><span>Dashboard</span></div>
 
-        <div class="nav-section">Inventory</div>
-        <div class="nav-item" onclick="navigate('drugmaster')"><span class="nav-icon">💊</span><span>Drug Master</span></div>
-        <div class="nav-item" onclick="navigate('itemmaster')"><span class="nav-icon">📦</span><span>Item Master</span></div>
-        <div class="nav-item" onclick="navigate('stock')"><span class="nav-icon">🗃️</span><span>Stock Ledger</span></div>
-        <div class="nav-item" onclick="navigate('vendors')"><span class="nav-icon">🏭</span><span>Vendors</span></div>
+        <div class="nav-section" data-admin-only>Inventory</div>
+        <div class="nav-item" data-admin-only onclick="navigate('drugmaster')"><span class="nav-icon">💊</span><span>Drug Master</span></div>
+        <div class="nav-item" data-admin-only onclick="navigate('itemmaster')"><span class="nav-icon">📦</span><span>Item Master</span></div>
+        <div class="nav-item" data-admin-only onclick="navigate('stock')"><span class="nav-icon">🗃️</span><span>Stock Ledger</span></div>
+        <div class="nav-item" data-admin-only onclick="navigate('vendors')"><span class="nav-icon">🏭</span><span>Vendors</span></div>
 
-        <div class="nav-section">Purchase</div>
-        <div class="nav-item" onclick="navigate('purchase')"><span class="nav-icon">🛒</span><span>Purchase Orders</span></div>
-        <div class="nav-item" onclick="navigate('grn')"><span class="nav-icon">📥</span><span>GRN</span></div>
+        <div class="nav-section" data-admin-only>Purchase</div>
+        <div class="nav-item" data-admin-only onclick="navigate('purchase')"><span class="nav-icon">🛒</span><span>Purchase Orders</span></div>
+        <div class="nav-item" data-admin-only onclick="navigate('grn')"><span class="nav-icon">📥</span><span>GRN</span></div>
 
-        <div class="nav-section">Dispensing</div>
-        <div class="nav-item" onclick="navigate('indents')"><span class="nav-icon">📋</span><span>Indents</span><span class="nav-badge" id="pendingBadge">0</span></div>
-        <div class="nav-item" onclick="navigate('dispensing')"><span class="nav-icon">💉</span><span>Dispensing</span></div>
-        <div class="nav-item" onclick="navigate('returns')"><span class="nav-icon">↩️</span><span>Returns</span></div>
+        <div class="nav-section" data-admin-only>Dispensing</div>
+        <div class="nav-item" data-admin-only onclick="navigate('indents')"><span class="nav-icon">📋</span><span>Indents</span><span class="nav-badge" id="pendingBadge">0</span></div>
+        <div class="nav-item" data-admin-only onclick="navigate('dispensing')"><span class="nav-icon">💉</span><span>Dispensing</span></div>
+        <div class="nav-item" data-admin-only onclick="navigate('returns')"><span class="nav-icon">↩️</span><span>Returns</span></div>
 
-        <div class="nav-section">Pharmacy Billing</div>
+        <div class="nav-section" id="navBilling">Pharmacy Billing</div>
         <div class="nav-item" onclick="navigate('pos')"><span class="nav-icon">🏪</span><span>Point of Sale</span></div>
         <div class="nav-item" onclick="navigate('sales')"><span class="nav-icon">🧾</span><span>Sales Register</span></div>
         <div class="nav-item" id="navPricing" onclick="navigate('pricing')" style="display:none"><span class="nav-icon">💰</span><span>Drug Pricing</span></div>
 
-        <div class="nav-section">Alerts & NABH</div>
-        <div class="nav-item" onclick="navigate('expiry')"><span class="nav-icon">⚠️</span><span>Expiry Alerts</span></div>
-        <div class="nav-item" onclick="navigate('narcotic')"><span class="nav-icon">🔐</span><span>Narcotic Reg.</span></div>
-        <div class="nav-item" onclick="navigate('lasa')"><span class="nav-icon">🔴</span><span>LASA / High Risk</span></div>
+        <div class="nav-section" data-admin-only>Alerts & NABH</div>
+        <div class="nav-item" data-admin-only onclick="navigate('expiry')"><span class="nav-icon">⚠️</span><span>Expiry Alerts</span></div>
+        <div class="nav-item" data-admin-only onclick="navigate('narcotic')"><span class="nav-icon">🔐</span><span>Narcotic Reg.</span></div>
+        <div class="nav-item" data-admin-only onclick="navigate('lasa')"><span class="nav-icon">🔴</span><span>LASA / High Risk</span></div>
 
-        <div class="nav-section">Reports</div>
-        <div class="nav-item" onclick="navigate('reports')"><span class="nav-icon">📑</span><span>Reports</span></div>
-        <div class="nav-item" onclick="navigate('audit')"><span class="nav-icon">🔍</span><span>Audit Trail</span></div>
+        <div class="nav-section" data-admin-only>Reports</div>
+        <div class="nav-item" data-admin-only onclick="navigate('reports')"><span class="nav-icon">📑</span><span>Reports</span></div>
+        <div class="nav-item" data-admin-only onclick="navigate('audit')"><span class="nav-icon">🔍</span><span>Audit Trail</span></div>
 
-        <div class="nav-section">Admin</div>
-        <div class="nav-item" onclick="navigate('users')"><span class="nav-icon">👥</span><span>Users</span></div>
+        <div class="nav-section" data-admin-only>Admin</div>
+        <div class="nav-item" data-admin-only onclick="navigate('users')"><span class="nav-icon">👥</span><span>Users</span></div>
         <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
       </div>
       <div class="sidebar-footer">
@@ -1401,7 +1403,20 @@ let editingDrugKey = null;
 // ============================================================
 
 window.addEventListener('DOMContentLoaded', () => {
-  initDefaultAccounts();
+  // Always ensure the three built-in accounts exist (merge, never overwrite custom)
+  (function ensureAccounts() {
+    const defaults = [
+      { username:'admin',      password:'Admin@1234',   name:'Administrator', role:'admin',      dept:'Administration', protected:true  },
+      { username:'billing',    password:'Billing@1234', name:'Billing',       role:'accounts',   dept:'Billing',        protected:false },
+      { username:'pharmacist', password:'Pharma@1234',  name:'Pharmacist',    role:'pharmacist', dept:'Pharmacy',       protected:false }
+    ];
+    let existing = [];
+    try { existing = JSON.parse(localStorage.getItem('pharma_accounts') || '[]') || []; } catch(e) { existing = []; }
+    defaults.forEach(def => {
+      if (!existing.find(a => a.username === def.username)) existing.push(def);
+    });
+    localStorage.setItem('pharma_accounts', JSON.stringify(existing));
+  })();
   const hashCfg = fbCheckUrlHash();
   const cfg = hashCfg || fbGetConfig();
   if (cfg && cfg.apiKey && cfg.databaseURL) {
@@ -1421,22 +1436,29 @@ function showErr(msg) {
 }
 
 async function doLogin() {
-  const username = (document.getElementById('loginUsername').value || '').trim().toLowerCase();
-  const pass     = (document.getElementById('loginPassword').value || '');
+  const unEl = document.getElementById('loginUsername');
+  const pwEl = document.getElementById('loginPassword');
+  const username = (unEl ? unEl.value : '').trim().toLowerCase();
+  const pass     = pwEl ? pwEl.value : '';
   showErr('');
-  if (!username) { showErr('Enter your username.'); return; }
-  if (!pass)     { showErr('Enter your password.'); return; }
-  const accounts = getAccounts() || [];
+  if (!username) { showErr('Enter username'); return; }
+  if (!pass)     { showErr('Enter password'); return; }
+  let accounts = [];
+  try { accounts = JSON.parse(localStorage.getItem('pharma_accounts') || '[]') || []; } catch(e) { accounts = []; }
   const acct = accounts.find(a => a.username === username);
-  if (!acct)             { showErr('Invalid username or password.'); return; }
-  if (acct.disabled)     { showErr('Account disabled. Contact admin.'); return; }
-  if (acct.password !== pass) { showErr('Invalid username or password.'); return; }
-  // In-memory session only — no localStorage persistence
+  if (!acct)             { showErr('User not found. Default: admin / Admin@1234'); return; }
+  if (acct.disabled)     { showErr('Account disabled — contact admin'); return; }
+  if (acct.password !== pass) { showErr('Wrong password'); return; }
   currentUser     = { uid: username, username };
   currentUserData = { ...acct };
   document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  initApp();
+  document.getElementById('app').style.display    = 'block';
+  try { initApp(); } catch(err) {
+    console.error('initApp error:', err);
+    showErr('App error: ' + err.message);
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+  }
 }
 
 async function doLogout() {
@@ -1456,15 +1478,59 @@ function initApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   const name = currentUserData.name || currentUserData.username || 'User';
-  document.getElementById('sidebarName').textContent = name;
-  document.getElementById('sidebarRole').textContent = (currentUserData.role || 'user').replace('_',' ').toUpperCase();
-  document.getElementById('avatarInitials').textContent = name.charAt(0).toUpperCase();
-  setInterval(() => {
-    document.getElementById('topbarDate').textContent = new Date().toLocaleString('en-IN');
-  }, 1000);
+  const role = currentUserData.role || 'pharmacist';
+  const isAdmin = role === 'admin';
+
+  // Sidebar user info
+  const snEl = document.getElementById('sidebarName');
+  const srEl = document.getElementById('sidebarRole');
+  const avEl = document.getElementById('avatarInitials');
+  if (snEl) snEl.textContent = name;
+  if (srEl) srEl.textContent = role.replace('_',' ').toUpperCase();
+  if (avEl) avEl.textContent = name.charAt(0).toUpperCase();
+
+  // Clock
+  try {
+    setInterval(() => {
+      const d = document.getElementById('topbarDate');
+      if (d) d.textContent = new Date().toLocaleString('en-IN');
+    }, 1000);
+  } catch(e) {}
+
+  // ── RBAC: show/hide nav sections and buttons by role ──────
+  // Admin-only nav items
+  const adminOnlyNav = ['navInventory','navPurchase','navPricing'];
+  adminOnlyNav.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isAdmin ? '' : 'none';
+  });
+
+  // Pharmacist nav: show billing section
+  const navBilling = document.getElementById('navBilling');
+  if (navBilling) navBilling.style.display = '';
+
+  // Hide entire inventory sidebar section for non-admin
+  document.querySelectorAll('[data-admin-only]').forEach(el => {
+    el.style.display = isAdmin ? '' : 'none';
+  });
+
+  // Add/edit buttons inside modules
+  ['btnAddDrug','btnAddItem','btnAddVendor','btnNewPO','btnNewGRN','btnDrugPricing'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isAdmin ? '' : 'none';
+  });
+
+  // Drug pricing nav item — admin only
+  const navPricing = document.getElementById('navPricing');
+  if (navPricing) navPricing.style.display = isAdmin ? '' : 'none';
+
+  // Load data and dashboard
   if (fbDb && fbConnected) loadAllData();
   loadDashboard();
   buildReportButtons();
+
+  // Navigate to appropriate default module
+  navigate(isAdmin ? 'dashboard' : 'pos');
 }
 
 async function logAudit(module, action, recordId, details) {
@@ -1640,6 +1706,7 @@ function filterDrugs() {
 }
 
 async function saveDrug() {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can modify inventory','warn'); return; }
   const d = {
     generic: document.getElementById('dGeneric').value.trim(),
     brand: document.getElementById('dBrand').value.trim(),
@@ -1701,6 +1768,7 @@ function editDrug(key) {
 }
 
 async function deleteDrug(key) {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can modify inventory','warn'); return; }
   if (!confirm('Delete this drug from master?')) return;
   await fbDb.ref(FB_DATA_PATH+'/drugs/' + key).remove();
   await logAudit('drug_master', 'DELETE', key, '');
@@ -1744,6 +1812,7 @@ function filterItems() {
 }
 
 async function saveItem() {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can modify inventory','warn'); return; }
   const d = {
     name: document.getElementById('iName').value.trim(),
     type: document.getElementById('iType').value,
@@ -1761,6 +1830,7 @@ async function saveItem() {
 }
 
 async function deleteItem(key) {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can modify inventory','warn'); return; }
   if (!confirm('Delete this item?')) return;
   await fbDb.ref(FB_DATA_PATH+'/items/' + key).remove();
   await logAudit('item_master', 'DELETE', key, '');
@@ -1792,6 +1862,7 @@ function populateVendorDrops() {
 }
 
 async function saveVendor() {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can modify inventory','warn'); return; }
   const d = {
     name: document.getElementById('vName').value.trim(),
     contact: document.getElementById('vContact').value.trim(),
@@ -1840,6 +1911,7 @@ function addPOItem() {
 }
 
 async function savePO() {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can manage purchase/indents','warn'); return; }
   const items = [];
   document.querySelectorAll('[id^="pod_"]').forEach((el, i) => {
     const n = el.id.split('_')[1];
@@ -1884,6 +1956,7 @@ function renderPOs() {
 }
 
 async function approvePO(key) {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can manage purchase/indents','warn'); return; }
   await fbDb.ref(FB_DATA_PATH+'/purchase_orders/' + key).update({ status: 'Approved', approvedBy: currentUserData.name, approvedAt: new Date().toISOString() });
   await logAudit('purchase_orders', 'APPROVE', key, '');
   toast('PO Approved', 'success');
@@ -1918,6 +1991,7 @@ function addGRNItem() {
 }
 
 async function saveGRN() {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can manage purchase/indents','warn'); return; }
   const items = [];
   document.querySelectorAll('[id^="grnd_"]').forEach(el => {
     const n = el.id.split('_')[1];
@@ -2073,6 +2147,7 @@ function addIndentItem() {
 }
 
 async function saveIndent() {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can manage purchase/indents','warn'); return; }
   const items = [];
   document.querySelectorAll('[id^="indd_"]').forEach(el => {
     const n = el.id.split('_')[1];
@@ -2116,16 +2191,19 @@ function renderIndents(tab) {
 }
 
 async function approveIndent(key) {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can manage purchase/indents','warn'); return; }
   await fbDb.ref(FB_DATA_PATH+'/indents/' + key).update({ status: 'Approved', approvedBy: currentUserData.name, approvedAt: new Date().toISOString() });
   await logAudit('indents', 'APPROVE', key, '');
   toast('Indent approved', 'success');
 }
 async function rejectIndent(key) {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can manage purchase/indents','warn'); return; }
   await fbDb.ref(FB_DATA_PATH+'/indents/' + key).update({ status: 'Rejected', rejectedBy: currentUserData.name });
   await logAudit('indents', 'REJECT', key, '');
   toast('Indent rejected', 'warn');
 }
 async function issueIndent(key) {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can manage purchase/indents','warn'); return; }
   await fbDb.ref(FB_DATA_PATH+'/indents/' + key).update({ status: 'Issued', issuedBy: currentUserData.name, issuedAt: new Date().toISOString() });
   await logAudit('indents', 'ISSUE', key, '');
   toast('Indent marked as issued', 'success');
@@ -2871,6 +2949,13 @@ function fbPopulateFields() {
 
 // ── RESTORED FROM BASE ──
 function navigate(module) {
+  // RBAC guard
+  const isAdmin = currentUserData && currentUserData.role === 'admin';
+  const adminOnly = ['drugmaster','itemmaster','stock','vendors','purchase','grn',
+    'indents','dispensing','returns','expiry','narcotic','lasa','reports','audit','users','pricing'];
+  if (!isAdmin && adminOnly.includes(module)) {
+    toast('Access restricted — admin only','warn'); return;
+  }
   document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const el = document.getElementById('mod-' + module);
@@ -2878,13 +2963,21 @@ function navigate(module) {
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'" + module + "'")) n.classList.add('active');
   });
-  const titles = {dashboard:'Dashboard',drugmaster:'Drug Master',itemmaster:'Item Master',stock:'Stock Ledger',vendors:'Vendor Master',purchase:'Purchase Orders',grn:'Goods Receipt (GRN)',indents:'Ward Indents',dispensing:'Drug Dispensing',returns:'Drug Returns',expiry:'Expiry Register',narcotic:'Narcotic Register',lasa:'LASA / High Risk',reports:'Reports',audit:'Audit Trail',users:'User Management',settings:'Settings'};
+  const titles = {
+    dashboard:'Dashboard', drugmaster:'Drug Master', itemmaster:'Item Master',
+    stock:'Stock Ledger', vendors:'Vendor Master', purchase:'Purchase Orders',
+    grn:'GRN', indents:'Ward Indents', dispensing:'Drug Dispensing',
+    returns:'Drug Returns', expiry:'Expiry Register', narcotic:'Narcotic Register',
+    lasa:'LASA / High Risk', reports:'Reports', audit:'Audit Trail',
+    users:'User Management', settings:'Settings', pos:'Point of Sale',
+    sales:'Sales Register', pricing:'Drug Pricing'
+  };
   const titleEl = document.getElementById('topbarTitle');
   if (titleEl) titleEl.textContent = titles[module] || module;
-  if (module === 'settings') fbPopulateFields();
-  if (module === 'users') refreshUsersPanel();
-  if (module === 'sales') renderSales();
-  if (module === 'pricing') renderPricing();
+  if (module === 'settings') { try { fbPopulateFields(); } catch(e) {} }
+  if (module === 'users')    { try { refreshUsersPanel(); } catch(e) {} }
+  if (module === 'sales')    { try { renderSales(); } catch(e) {} }
+  if (module === 'pricing')  { try { renderPricing(); } catch(e) {} }
 }
 
 function switchTab(moduleKey, tabKey) {
@@ -2966,7 +3059,7 @@ function renderPricing() {
 }
 
 function openPriceEdit(drugKey, drugName) {
-  if (currentUserData?.role !== 'admin') { toast('Admin access required','warn'); return; }
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Drug prices can only be set by Admin','warn'); return; }
   posPricingEditKey = drugKey;
   const p = allPricing[drugKey] || {};
   document.getElementById('priceEditDrugName').textContent = drugName;
@@ -2991,7 +3084,7 @@ function priceMarginUpdate() {
 }
 
 async function saveDrugPrice() {
-  if (currentUserData?.role !== 'admin') { toast('Admin access required','warn'); return; }
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Drug prices can only be set by Admin','warn'); return; }
   const cost = parseFloat(document.getElementById('peCost').value);
   const mrp  = parseFloat(document.getElementById('peMrp').value);
   if (isNaN(cost) || cost < 0) { toast('Enter valid cost price','error'); return; }
