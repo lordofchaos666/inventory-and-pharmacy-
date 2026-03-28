@@ -1140,32 +1140,25 @@ function initFirebase(cfg) {
   try {
     if (firebase.apps.length === 0) { firebase.initializeApp(cfg); }
     db = firebase.app().database();
-
-    // ── 1. Connection monitor — runs immediately, no auth needed for .info/connected ──
+    // Connection monitor fires immediately — no auth delay
     db.ref('.info/connected').on('value', snap => {
       const v = snap.val();
-      if (v === true)  setSyncBadge('connected');
+      if (v === true)       setSyncBadge('connected');
       else if (v === false) setSyncBadge('disconnected');
-      // v === null means SDK just loaded — stay on 'connecting'
+      // v === null means SDK still loading — stay on connecting
     });
-
-    // ── 2. Anonymous auth — silently signs in to satisfy "auth != null" DB rules ──
+    // Anonymous auth satisfies "auth != null" rules silently
     firebase.auth().onAuthStateChanged(user => {
       if (!user) {
-        firebase.auth().signInAnonymously().catch(e => {
-          console.error('Anonymous auth failed — check Firebase Console > Authentication > Anonymous:', e.code);
+        firebase.auth().signInAnonymously().catch(err => {
+          console.error('Anonymous auth failed — enable in Firebase Console > Authentication > Anonymous:', err.code);
           setSyncBadge('error');
         });
       }
     });
-
     setSyncBadge('connecting');
     return true;
-  } catch(e) {
-    console.error('Firebase init error:', e);
-    setSyncBadge('error');
-    return false;
-  }
+  } catch(e) { console.error('Firebase init error:', e); setSyncBadge('error'); return false; }
 }
 
 function setSyncBadge(state) {
