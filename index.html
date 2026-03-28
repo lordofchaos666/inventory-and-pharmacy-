@@ -269,18 +269,47 @@ tr:last-child td { border-bottom: none; }
       <h1>Chandrawati PharmaSys</h1>
       <p>NABH Pharmacy Management</p>
     </div>
-    <div class="form-group">
-      <label>Username</label>
-      <input type="text" id="loginUsername" placeholder="admin" autocomplete="username"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('loginPassword').focus();document.getElementById('loginPassword').select();}">
-    </div>
-    <div class="form-group">
-      <label>Password</label>
-      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();doLogin();}">
-    </div>
-    <button class="btn-primary" id="loginBtn" type="button" onclick="doLogin()">Sign In</button>
-    <p class="login-err" id="loginErr" style="min-height:18px"></p>
+    <form style="display:contents" onsubmit="(function(e){
+      e.preventDefault();
+      var u = document.getElementById('loginUsername').value.trim().toLowerCase();
+      var p = document.getElementById('loginPassword').value;
+      var errEl = document.getElementById('loginErr');
+      errEl.textContent = '';
+      if (!u || !p) { errEl.textContent = 'Enter username and password'; return; }
+      var raw = localStorage.getItem('pharma_accounts');
+      var accts;
+      try { accts = JSON.parse(raw || '[]'); } catch(x) { accts = []; }
+      if (!accts.length) accts = [
+        {username:'admin',password:'Admin@1234',name:'Administrator',role:'admin',protected:true},
+        {username:'billing',password:'Billing@1234',name:'Billing',role:'accounts',protected:false},
+        {username:'pharmacist',password:'Pharma@1234',name:'Pharmacist',role:'pharmacist',protected:false}
+      ];
+      var acct = accts.find(function(a){ return a.username === u; });
+      if (!acct) { errEl.textContent = 'Not found. Try: admin / Admin@1234'; return; }
+      if (acct.disabled) { errEl.textContent = 'Account disabled'; return; }
+      if (acct.password !== p) { errEl.textContent = 'Wrong password'; return; }
+      currentUser = { uid: u, username: u };
+      currentUserData = JSON.parse(JSON.stringify(acct));
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      try { initApp(); } catch(err) {
+        console.error('initApp crashed:', err);
+        errEl.textContent = 'Login OK but app error: ' + err.message;
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+      }
+    })(event)">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="loginUsername" placeholder="admin" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-primary" style="width:100%">Sign In</button>
+      <p class="login-err" id="loginErr" style="min-height:20px;margin-top:8px;text-align:center;color:#f85149;font-size:13px"></p>
+    </form>
     <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:16px;">Chandrawati Hospital · GT Road Barwadda · Dhanbad</p>
   </div>
 </div>
@@ -1433,32 +1462,14 @@ function showErr(msg) {
   if (el) { el.textContent = msg; el.className = 'login-err err'; }
 }
 
-async function doLogin() {
-  const unEl = document.getElementById('loginUsername');
-  const pwEl = document.getElementById('loginPassword');
-  const username = (unEl ? unEl.value : '').trim().toLowerCase();
-  const pass     = pwEl ? pwEl.value : '';
-  showErr('');
-  if (!username) { showErr('Enter username'); return; }
-  if (!pass)     { showErr('Enter password'); return; }
-  let accounts = [];
-  try { accounts = JSON.parse(localStorage.getItem('pharma_accounts') || '[]') || []; } catch(e) { accounts = []; }
-  const acct = accounts.find(a => a.username === username);
-  if (!acct)             { showErr('User not found. Default: admin / Admin@1234'); return; }
-  if (acct.disabled)     { showErr('Account disabled — contact admin'); return; }
-  if (acct.password !== pass) { showErr('Wrong password'); return; }
-  currentUser     = { uid: username, username };
-  currentUserData = { ...acct };
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('app').style.display    = 'block';
-  try { initApp(); } catch(err) {
-    console.error('initApp error:', err);
-    showErr('App error: ' + err.message);
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
+function doLogin() {
+  // Delegate to the form's onsubmit handler
+  var form = document.querySelector('#loginScreen form');
+  if (form) {
+    var evt = new Event('submit', {cancelable:true, bubbles:true});
+    form.dispatchEvent(evt);
   }
 }
-
 async function doLogout() {
   try { await logAudit('auth', 'LOGOUT', currentUserData?.username || '', ''); } catch(e) {}
   currentUser = null; currentUserData = null;
@@ -1559,7 +1570,7 @@ function loadAllData() {
   });
   fbDb.ref(p+'/stock').on('value', snap => {
     allStock=[]; if(snap.val()) snap.forEach(c=>allStock.push({key:c.key,...c.val()}));
-    renderStock(); loadDashboard();
+    renderStock();
   });
   fbDb.ref(p+'/purchase_orders').on('value', snap => {
     allPOs=[]; if(snap.val()) snap.forEach(c=>allPOs.push({key:c.key,...c.val()})); renderPOs();
@@ -2794,51 +2805,7 @@ window.seedDemoData = async function() {
   toast('Demo data seeded!', 'success');
 };
 
-// ============================================================
-// ENTER KEY NAVIGATION — Global handler for all inputs
-// ============================================================
-// Moves focus to next input/select/textarea/button in same
-// modal or form on Enter. On the last field calls submit fn.
-// Configured per-modal via data-enter-submit on containers.
 
-document.addEventListener('keydown', function(e) {
-  if (e.key !== 'Enter') return;
-  const tag = e.target.tagName;
-  // Only handle input and select; not textarea (Enter = newline)
-  if (tag === 'TEXTAREA') return;
-  if (tag !== 'INPUT' && tag !== 'SELECT') return;
-  e.preventDefault();
-
-  // Find the enclosing modal or form context
-  const container = e.target.closest('.modal-box, .login-card, .card');
-  if (!container) return;
-
-  // All focusable fields in this container
-  const fields = Array.from(container.querySelectorAll(
-    'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
-  ));
-  const idx = fields.indexOf(e.target);
-
-  if (idx >= 0 && idx < fields.length - 1) {
-    // Move to next field
-    fields[idx + 1].focus();
-    if (fields[idx + 1].tagName === 'INPUT') fields[idx + 1].select();
-  } else {
-    // Last field — trigger the submit button in this context
-    const submitBtn = container.querySelector(
-      '.modal-footer .btn-teal, .btn-primary, [data-submit]'
-    );
-    if (submitBtn) submitBtn.click();
-  }
-}, true);
-
-// Search inputs — Enter triggers the filter immediately (already live via oninput)
-// but also prevents form submit bubbling
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter' && e.target.classList.contains('search-input')) {
-    e.preventDefault();
-  }
-});
 
 
 // ============================================================
