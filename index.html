@@ -288,8 +288,8 @@ tr:last-child td { border-bottom: none; }
       if (!acct) { errEl.textContent = 'Not found. Try: admin / Admin@1234'; return; }
       if (acct.disabled) { errEl.textContent = 'Account disabled'; return; }
       if (acct.password !== p) { errEl.textContent = 'Wrong password'; return; }
-      currentUser = { uid: u, username: u };
-      currentUserData = JSON.parse(JSON.stringify(acct));
+      window.currentUser = { uid: u, username: u };
+      window.currentUserData = JSON.parse(JSON.stringify(acct));
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
       try { initApp(); } catch(err) {
@@ -331,37 +331,37 @@ tr:last-child td { border-bottom: none; }
         <div class="nav-section">Main</div>
         <div class="nav-item active" onclick="navigate('dashboard')"><span class="nav-icon">📊</span><span>Dashboard</span></div>
 
-        <div class="nav-section" data-admin-only>Inventory</div>
-        <div class="nav-item" data-admin-only onclick="navigate('drugmaster')"><span class="nav-icon">💊</span><span>Drug Master</span></div>
-        <div class="nav-item" data-admin-only onclick="navigate('itemmaster')"><span class="nav-icon">📦</span><span>Item Master</span></div>
-        <div class="nav-item" data-admin-only onclick="navigate('stock')"><span class="nav-icon">🗃️</span><span>Stock Ledger</span></div>
-        <div class="nav-item" data-admin-only onclick="navigate('vendors')"><span class="nav-icon">🏭</span><span>Vendors</span></div>
+        <div class="nav-section">Inventory</div>
+        <div class="nav-item" onclick="navigate('drugmaster')"><span class="nav-icon">💊</span><span>Drug Master</span></div>
+        <div class="nav-item" onclick="navigate('itemmaster')"><span class="nav-icon">📦</span><span>Item Master</span></div>
+        <div class="nav-item" onclick="navigate('stock')"><span class="nav-icon">🗃️</span><span>Stock Ledger</span></div>
+        <div class="nav-item" onclick="navigate('vendors')"><span class="nav-icon">🏭</span><span>Vendors</span></div>
 
-        <div class="nav-section" data-admin-only>Purchase</div>
-        <div class="nav-item" data-admin-only onclick="navigate('purchase')"><span class="nav-icon">🛒</span><span>Purchase Orders</span></div>
-        <div class="nav-item" data-admin-only onclick="navigate('grn')"><span class="nav-icon">📥</span><span>GRN</span></div>
+        <div class="nav-section">Purchase</div>
+        <div class="nav-item" onclick="navigate('purchase')"><span class="nav-icon">🛒</span><span>Purchase Orders</span></div>
+        <div class="nav-item" onclick="navigate('grn')"><span class="nav-icon">📥</span><span>GRN</span></div>
 
-        <div class="nav-section" data-admin-only>Dispensing</div>
-        <div class="nav-item" data-admin-only onclick="navigate('indents')"><span class="nav-icon">📋</span><span>Indents</span><span class="nav-badge" id="pendingBadge">0</span></div>
-        <div class="nav-item" data-admin-only onclick="navigate('dispensing')"><span class="nav-icon">💉</span><span>Dispensing</span></div>
-        <div class="nav-item" data-admin-only onclick="navigate('returns')"><span class="nav-icon">↩️</span><span>Returns</span></div>
+        <div class="nav-section">Dispensing</div>
+        <div class="nav-item" onclick="navigate('indents')"><span class="nav-icon">📋</span><span>Indents</span><span class="nav-badge" id="pendingBadge">0</span></div>
+        <div class="nav-item" onclick="navigate('dispensing')"><span class="nav-icon">💉</span><span>Dispensing</span></div>
+        <div class="nav-item" onclick="navigate('returns')"><span class="nav-icon">↩️</span><span>Returns</span></div>
 
         <div class="nav-section" id="navBilling">Pharmacy Billing</div>
         <div class="nav-item" onclick="navigate('pos')"><span class="nav-icon">🏪</span><span>Point of Sale</span></div>
         <div class="nav-item" onclick="navigate('sales')"><span class="nav-icon">🧾</span><span>Sales Register</span></div>
         <div class="nav-item" id="navPricing" onclick="navigate('pricing')" style="display:none"><span class="nav-icon">💰</span><span>Drug Pricing</span></div>
 
-        <div class="nav-section" data-admin-only>Alerts & NABH</div>
-        <div class="nav-item" data-admin-only onclick="navigate('expiry')"><span class="nav-icon">⚠️</span><span>Expiry Alerts</span></div>
-        <div class="nav-item" data-admin-only onclick="navigate('narcotic')"><span class="nav-icon">🔐</span><span>Narcotic Reg.</span></div>
-        <div class="nav-item" data-admin-only onclick="navigate('lasa')"><span class="nav-icon">🔴</span><span>LASA / High Risk</span></div>
+        <div class="nav-section">Alerts & NABH</div>
+        <div class="nav-item" onclick="navigate('expiry')"><span class="nav-icon">⚠️</span><span>Expiry Alerts</span></div>
+        <div class="nav-item" onclick="navigate('narcotic')"><span class="nav-icon">🔐</span><span>Narcotic Reg.</span></div>
+        <div class="nav-item" onclick="navigate('lasa')"><span class="nav-icon">🔴</span><span>LASA / High Risk</span></div>
 
-        <div class="nav-section" data-admin-only>Reports</div>
-        <div class="nav-item" data-admin-only onclick="navigate('reports')"><span class="nav-icon">📑</span><span>Reports</span></div>
-        <div class="nav-item" data-admin-only onclick="navigate('audit')"><span class="nav-icon">🔍</span><span>Audit Trail</span></div>
+        <div class="nav-section">Reports</div>
+        <div class="nav-item" onclick="navigate('reports')"><span class="nav-icon">📑</span><span>Reports</span></div>
+        <div class="nav-item" onclick="navigate('audit')"><span class="nav-icon">🔍</span><span>Audit Trail</span></div>
 
-        <div class="nav-section" data-admin-only>Admin</div>
-        <div class="nav-item" data-admin-only onclick="navigate('users')"><span class="nav-icon">👥</span><span>Users</span></div>
+        <div class="nav-section">Admin</div>
+        <div class="nav-item" onclick="navigate('users')"><span class="nav-icon">👥</span><span>Users</span></div>
         <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
       </div>
       <div class="sidebar-footer">
@@ -1406,8 +1406,8 @@ function initDefaultAccounts() {
 // ============================================================
 // STATE
 // ============================================================
-let currentUser = null;
-let currentUserData = null;
+var currentUser = null;
+var currentUserData = null;
 let allDrugs = [];
 let allItems = [];
 let allVendors = [];
@@ -1465,6 +1465,10 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     } catch(e) {}
   }
+  // Persist baked config to localStorage so Settings shows it filled
+  if (FIREBASE_BAKED_CONFIG && FIREBASE_BAKED_CONFIG.apiKey) {
+    try { localStorage.setItem(FB_CFG_KEY, JSON.stringify(FIREBASE_BAKED_CONFIG)); } catch(e) {}
+  }
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('loginUsername').focus();
@@ -1499,6 +1503,7 @@ async function doLogout() {
 function initApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+  if (!currentUserData) { console.error('initApp: currentUserData is null'); return; }
   const name = currentUserData.name || currentUserData.username || 'User';
   const role = currentUserData.role || 'pharmacist';
   const isAdmin = role === 'admin';
@@ -1531,18 +1536,7 @@ function initApp() {
   const navBilling = document.getElementById('navBilling');
   if (navBilling) navBilling.style.display = '';
 
-  // Hide entire inventory sidebar section for non-admin
-  document.querySelectorAll('[data-admin-only]').forEach(el => {
-    el.style.display = isAdmin ? '' : 'none';
-  });
-
-  // Add/edit buttons inside modules
-  ['btnAddDrug','btnAddItem','btnAddVendor','btnNewPO','btnNewGRN','btnDrugPricing'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = isAdmin ? '' : 'none';
-  });
-
-  // Drug pricing nav item — admin only
+  // RBAC: only hide the Drug Pricing nav for non-admin (everything else stays visible)
   const navPricing = document.getElementById('navPricing');
   if (navPricing) navPricing.style.display = isAdmin ? '' : 'none';
 
