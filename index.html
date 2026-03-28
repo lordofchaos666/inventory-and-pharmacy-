@@ -1,3 +1,5 @@
+[Reading 3195 lines from start (total: 3195 lines, 0 remaining)]
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -269,47 +271,18 @@ tr:last-child td { border-bottom: none; }
       <h1>Chandrawati PharmaSys</h1>
       <p>NABH Pharmacy Management</p>
     </div>
-    <form style="display:contents" onsubmit="(function(e){
-      e.preventDefault();
-      var u = document.getElementById('loginUsername').value.trim().toLowerCase();
-      var p = document.getElementById('loginPassword').value;
-      var errEl = document.getElementById('loginErr');
-      errEl.textContent = '';
-      if (!u || !p) { errEl.textContent = 'Enter username and password'; return; }
-      var raw = localStorage.getItem('pharma_accounts');
-      var accts;
-      try { accts = JSON.parse(raw || '[]'); } catch(x) { accts = []; }
-      if (!accts.length) accts = [
-        {username:'admin',password:'Admin@1234',name:'Administrator',role:'admin',protected:true},
-        {username:'billing',password:'Billing@1234',name:'Billing',role:'accounts',protected:false},
-        {username:'pharmacist',password:'Pharma@1234',name:'Pharmacist',role:'pharmacist',protected:false}
-      ];
-      var acct = accts.find(function(a){ return a.username === u; });
-      if (!acct) { errEl.textContent = 'Not found. Try: admin / Admin@1234'; return; }
-      if (acct.disabled) { errEl.textContent = 'Account disabled'; return; }
-      if (acct.password !== p) { errEl.textContent = 'Wrong password'; return; }
-      window.currentUser = { uid: u, username: u };
-      window.currentUserData = JSON.parse(JSON.stringify(acct));
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('app').style.display = 'block';
-      try { initApp(); } catch(err) {
-        console.error('initApp crashed:', err);
-        errEl.textContent = 'Login OK but app error: ' + err.message;
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
-      }
-    })(event)">
-      <div class="form-group">
-        <label>Username</label>
-        <input type="text" id="loginUsername" placeholder="admin" autocomplete="username">
-      </div>
-      <div class="form-group">
-        <label>Password</label>
-        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
-      </div>
-      <button type="submit" class="btn-primary" style="width:100%">Sign In</button>
-      <p class="login-err" id="loginErr" style="min-height:20px;margin-top:8px;text-align:center;color:#f85149;font-size:13px"></p>
-    </form>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="loginUsername" placeholder="admin" autocomplete="username"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('loginPassword').focus();}">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();doLogin();}">
+    </div>
+    <button class="btn-primary" id="loginBtn" type="button" onclick="doLogin()">Sign In</button>
+    <p class="login-err" id="loginErr" style="min-height:18px"></p>
     <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:16px;">Chandrawati Hospital · GT Road Barwadda · Dhanbad</p>
   </div>
 </div>
@@ -346,15 +319,15 @@ tr:last-child td { border-bottom: none; }
         <div class="nav-item" onclick="navigate('dispensing')"><span class="nav-icon">💉</span><span>Dispensing</span></div>
         <div class="nav-item" onclick="navigate('returns')"><span class="nav-icon">↩️</span><span>Returns</span></div>
 
-        <div class="nav-section" id="navBilling">Pharmacy Billing</div>
-        <div class="nav-item" onclick="navigate('pos')"><span class="nav-icon">🏪</span><span>Point of Sale</span></div>
-        <div class="nav-item" onclick="navigate('sales')"><span class="nav-icon">🧾</span><span>Sales Register</span></div>
-        <div class="nav-item" id="navPricing" onclick="navigate('pricing')" style="display:none"><span class="nav-icon">💰</span><span>Drug Pricing</span></div>
-
         <div class="nav-section">Alerts & NABH</div>
         <div class="nav-item" onclick="navigate('expiry')"><span class="nav-icon">⚠️</span><span>Expiry Alerts</span></div>
         <div class="nav-item" onclick="navigate('narcotic')"><span class="nav-icon">🔐</span><span>Narcotic Reg.</span></div>
         <div class="nav-item" onclick="navigate('lasa')"><span class="nav-icon">🔴</span><span>LASA / High Risk</span></div>
+
+        <div class="nav-section">Pharmacy Billing</div>
+        <div class="nav-item" onclick="navigate('pos')"><span class="nav-icon">🏪</span><span>Point of Sale</span></div>
+        <div class="nav-item" onclick="navigate('sales')"><span class="nav-icon">🧾</span><span>Sales Register</span></div>
+        <div class="nav-item" id="navPricing" onclick="navigate('pricing')"><span class="nav-icon">💰</span><span>Drug Pricing</span></div>
 
         <div class="nav-section">Reports</div>
         <div class="nav-item" onclick="navigate('reports')"><span class="nav-icon">📑</span><span>Reports</span></div>
@@ -418,7 +391,7 @@ tr:last-child td { border-bottom: none; }
               <div><div class="card-title">💊 Drug Master</div><div class="card-subtitle">Generic & brand drug registry</div></div>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-outline btn-sm" onclick="exportTableCSV('drugTable','drug_master')">⬇ Export</button>
-                <button class="btn btn-teal btn-sm" id="btnAddDrug" onclick="openModal('modalDrug')">+ Add Drug</button>
+                <button class="btn btn-teal btn-sm" onclick="openModal('modalDrug')">+ Add Drug</button>
               </div>
             </div>
             <div class="search-bar">
@@ -762,131 +735,131 @@ tr:last-child td { border-bottom: none; }
             </div>
           </div>
           <div class="card" id="firebaseConfigCard">
-            <div class="card-header">
-              <div><div class="card-title">🔥 Firebase Configuration</div><div class="card-subtitle">Enter once — all devices sync automatically</div></div>
+            <div class="card-header"><div class="card-title">🔥 Cloud Sync Status</div></div>
+            <div id="fbStatusBox" class="alert-box success">
+              <div style="font-weight:700;font-size:14px;margin-bottom:6px">✅ Auto-Sync Active — No Setup Needed</div>
+              Firebase credentials are <b>built into this file</b>. Every device that opens it automatically connects and syncs data in real-time. The badge in the top bar shows live status.
             </div>
-            <div id="fbStatusBox" class="alert-box info" style="margin-bottom:14px">
-              <span id="fbStatusText">⚪ Not connected — enter credentials below and click Save &amp; Connect</span>
+            <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px">
+                <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Firebase Project</div>
+                <div style="font-weight:600;font-family:var(--mono);font-size:12px">pharmacy-and-inventory</div>
+              </div>
+              <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px">
+                <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Realtime Database</div>
+                <div style="font-weight:600;font-family:var(--mono);font-size:11px">pharmacy-and-inventory-default-rtdb</div>
+              </div>
             </div>
-            <div class="form-grid" style="margin-bottom:14px">
-              <div class="form-group-sm"><label>API Key *</label><input type="text" id="fb_apiKey" placeholder="AIzaSy..."></div>
-              <div class="form-group-sm"><label>Database URL *</label><input type="text" id="fb_dbUrl" placeholder="https://xxx-default-rtdb.asia-southeast1.firebasedatabase.app"></div>
-              <div class="form-group-sm"><label>Auth Domain</label><input type="text" id="fb_authDomain" placeholder="your-project.firebaseapp.com"></div>
-              <div class="form-group-sm"><label>Project ID</label><input type="text" id="fb_projectId" placeholder="your-project-id"></div>
+            <div class="alert-box info" style="margin-top:12px">
+              <div style="font-weight:700;margin-bottom:4px">📱 To use on another device</div>
+              Copy this HTML file → open it on any computer, tablet, or phone → it connects automatically.<br>
+              No credentials to enter. No share link needed.
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
-              <button class="btn btn-teal" onclick="fbSaveConfig()">💾 Save &amp; Connect</button>
-              <button class="btn btn-outline btn-sm" onclick="fbTestConnection()">🔌 Test</button>
-              <button class="btn btn-outline btn-sm" onclick="fbCopyShareLink()">📋 Copy Share Link</button>
-              <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="fbClearConfig()">✕ Disconnect</button>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <button class="btn btn-outline btn-sm" onclick="fbTestConnection()">🔌 Test Connection</button>
               <span id="fbTestResult" style="font-size:12px;color:var(--text2)"></span>
             </div>
-            <div id="shareLinkBox" style="display:none;word-break:break-all;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:11px;color:var(--text2);margin-bottom:12px;font-family:monospace"></div>
-            <div id="fbShareNote" style="display:none" class="alert-box success">Link copied — open on any device to auto-connect.</div>
-            <div class="alert-box info" style="margin-bottom:12px">
-              <b>Your credentials:</b><br>
-              API Key: <code style="background:rgba(0,0,0,0.15);padding:1px 5px;border-radius:3px;font-size:11px">AIzaSyDeJqsvczfezMKCuyIeJe4N6ZVxF82JZs</code><br>
-              Database URL: <code style="background:rgba(0,0,0,0.15);padding:1px 5px;border-radius:3px;font-size:11px">https://pharmacy-and-inventory-default-rtdb.asia-southeast1.firebasedatabase.app</code>
-            </div>
-          </div>
+            <div style="margin-top:16px;font-size:13px;font-weight:700;color:var(--text)">Firebase Database Rules (one-time setup)</div>
+            <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Firebase Console → Realtime Database → Rules → paste → Publish:</div>
+            <pre style="background:#1e2a3a;color:#4db6ac;padding:14px;border-radius:6px;font-family:var(--mono);font-size:13px;overflow-x:auto">{
+  "rules": {
+    ".read": "now < 1775673000000",  // 2026-4-9
+    ".write": "now < 1775673000000"  // 2026-4-9
+  }
+}</pre>
+            <div class="alert-box success" style="margin-top:10px">✅ Default credentials: <b>admin</b> / Admin@1234 &nbsp;·&nbsp; <b>billing</b> / Billing@1234</div>
+            <div id="shareLinkBox" style="display:none"></div>
           </div>
         </div>
 
 
-        <!-- ===================== POINT OF SALE ===================== -->
+        <!-- ═══ POINT OF SALE ═══ -->
         <div id="mod-pos" class="module">
-          <div style="display:grid;grid-template-columns:1fr 380px;gap:16px;height:calc(100vh - 130px)">
-            <!-- LEFT: Drug search + cart -->
-            <div style="display:flex;flex-direction:column;gap:12px;overflow:hidden">
-              <div class="card" style="flex-shrink:0">
-                <div class="card-header"><div><div class="card-title">🏪 Point of Sale</div><div class="card-subtitle">Sell medication from inventory</div></div></div>
+          <div style="display:grid;grid-template-columns:1fr 360px;gap:16px">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div class="card">
+                <div class="card-header"><div><div class="card-title">🏪 Point of Sale</div><div class="card-subtitle">Sell medication — stock auto-deducted on bill</div></div></div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
                   <div class="form-group-sm"><label>Patient Name *</label><input type="text" id="posPatient" placeholder="Patient name"></div>
                   <div class="form-group-sm"><label>UHID / Mobile</label><input type="text" id="posUhid" placeholder="UHID or phone"></div>
-                  <div class="form-group-sm"><label>Doctor / Prescription</label><input type="text" id="posDoctor" placeholder="Dr. Name"></div>
+                  <div class="form-group-sm"><label>Doctor</label><input type="text" id="posDoctor" placeholder="Dr. Name"></div>
                 </div>
                 <div style="display:flex;gap:10px;align-items:center">
-                  <input type="text" id="posDrugSearch" placeholder="🔍 Search drug to add..." style="flex:1;padding:9px 14px;border:1.5px solid var(--border);border-radius:7px;font-family:var(--font);font-size:13px;background:var(--bg);color:var(--text)" oninput="posSearchDrug(this.value)">
-                  <select id="posSearchType" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:7px;font-family:var(--font);font-size:13px;background:var(--bg);color:var(--text)" onchange="posSearchDrug(document.getElementById('posDrugSearch').value)">
-                    <option value="all">All Drugs</option>
-                    <option value="instock">In Stock Only</option>
-                  </select>
+                  <input type="text" id="posDrugSearch" placeholder="🔍 Search drug by name..." style="flex:1;padding:9px 14px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:var(--bg);color:var(--text)" oninput="posSearchDrug(this.value)">
                 </div>
-                <div id="posDrugResults" style="margin-top:8px;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:7px;display:none"></div>
+                <div id="posDrugResults" style="margin-top:8px;max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:7px;display:none"></div>
               </div>
-              <div class="card" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+              <div class="card" style="flex:1">
                 <div class="card-header"><div class="card-title">🛒 Cart</div><span id="posCartCount" style="font-size:12px;color:var(--text2)">0 items</span></div>
-                <div style="flex:1;overflow-y:auto">
+                <div style="overflow-y:auto;max-height:260px">
                   <table style="width:100%;font-size:12px;border-collapse:collapse">
-                    <thead><tr style="background:var(--surface2)"><th style="padding:8px;text-align:left">Drug</th><th style="padding:8px;text-align:center">Batch</th><th style="padding:8px;text-align:center">Qty</th><th style="padding:8px;text-align:right">MRP</th><th style="padding:8px;text-align:right">Amount</th><th style="padding:8px;text-align:center">✕</th></tr></thead>
-                    <tbody id="posCartBody"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Add drugs from search above</td></tr></tbody>
+                    <thead><tr style="background:var(--surface2)"><th style="padding:8px;text-align:left">Drug</th><th style="padding:8px;text-align:center">Batch</th><th style="padding:8px;text-align:center">Qty</th><th style="padding:8px;text-align:right">MRP</th><th style="padding:8px;text-align:right">Amt</th><th style="padding:8px">✕</th></tr></thead>
+                    <tbody id="posCartBody"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Add drugs from search above</td></tr></tbody>
                   </table>
                 </div>
               </div>
             </div>
-            <!-- RIGHT: Bill summary -->
-            <div class="card" style="display:flex;flex-direction:column;gap:12px">
+            <div class="card" style="display:flex;flex-direction:column;gap:10px">
               <div class="card-title">🧾 Bill Summary</div>
               <div style="background:var(--surface2);border-radius:8px;padding:14px;font-size:13px">
                 <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Subtotal</span><span id="posSubtotal">₹0.00</span></div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:8px;align-items:center">
-                  <span>Discount (%)</span>
+                  <span>Discount %</span>
                   <input type="number" id="posDiscount" value="0" min="0" max="100" style="width:70px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;text-align:right;font-size:13px;background:var(--bg);color:var(--text)" oninput="posRecalc()">
                 </div>
-                <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Discount Amt</span><span id="posDiscAmt" style="color:var(--red)">-₹0.00</span></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Disc Amt</span><span id="posDiscAmt" style="color:var(--red)">-₹0.00</span></div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:8px;align-items:center">
-                  <span>GST (%)</span>
+                  <span>GST %</span>
                   <input type="number" id="posGst" value="0" min="0" max="28" style="width:70px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;text-align:right;font-size:13px;background:var(--bg);color:var(--text)" oninput="posRecalc()">
                 </div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>GST Amt</span><span id="posGstAmt">₹0.00</span></div>
-                <hr style="border-color:var(--border);margin:10px 0">
+                <hr style="border-color:var(--border);margin:8px 0">
                 <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px"><span>Total</span><span id="posTotal" style="color:var(--teal)">₹0.00</span></div>
               </div>
               <div class="form-group-sm"><label>Payment Mode</label>
-                <select id="posPayMode" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:7px;font-family:var(--font);font-size:13px;background:var(--bg);color:var(--text)">
-                  <option>Cash</option><option>UPI</option><option>Card</option><option>Insurance</option><option>Credit (Hospital Account)</option>
+                <select id="posPayMode" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:var(--bg);color:var(--text)">
+                  <option>Cash</option><option>UPI</option><option>Card</option><option>Insurance</option><option>Credit (Hospital)</option>
                 </select>
               </div>
-              <div class="form-group-sm"><label>Notes</label><input type="text" id="posNotes" placeholder="Optional notes"></div>
+              <div class="form-group-sm"><label>Notes</label><input type="text" id="posNotes" placeholder="Optional"></div>
               <button class="btn btn-teal" style="width:100%;padding:12px;font-size:14px;font-weight:700" onclick="posGenerateBill()">💾 Generate Bill &amp; Deduct Stock</button>
               <button class="btn btn-outline btn-sm" style="width:100%" onclick="posClearCart()">🗑️ Clear Cart</button>
             </div>
           </div>
         </div>
 
-        <!-- ===================== SALES REGISTER ===================== -->
+        <!-- ═══ SALES REGISTER ═══ -->
         <div id="mod-sales" class="module">
           <div class="card">
             <div class="card-header">
               <div><div class="card-title">🧾 Sales Register</div><div class="card-subtitle">All pharmacy bills</div></div>
               <div style="display:flex;gap:8px">
-                <input type="date" id="salesDateFrom" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--bg);color:var(--text)">
-                <input type="date" id="salesDateTo" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--bg);color:var(--text)">
-                <button class="btn btn-outline btn-sm" onclick="renderSales()">🔍 Filter</button>
+                <input type="date" id="salesFrom" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--bg);color:var(--text)">
+                <input type="date" id="salesTo"   style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--bg);color:var(--text)">
+                <button class="btn btn-outline btn-sm" onclick="renderSales()">🔍</button>
                 <button class="btn btn-outline btn-sm" onclick="exportSalesCSV()">⬇ CSV</button>
               </div>
             </div>
-            <div id="salesSummaryBar" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px"></div>
+            <div id="salesStats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px"></div>
             <div class="tbl-wrap">
               <table>
-                <thead><tr><th>Bill No.</th><th>Date/Time</th><th>Patient</th><th>UHID</th><th>Items</th><th>Subtotal</th><th>Discount</th><th>GST</th><th>Total</th><th>Payment</th><th>By</th><th>Actions</th></tr></thead>
-                <tbody id="salesTbody"><tr><td colspan="12" style="text-align:center;color:var(--text3);padding:24px">No sales records</td></tr></tbody>
+                <thead><tr><th>Bill No.</th><th>Date</th><th>Patient</th><th>UHID</th><th>Items</th><th>Total</th><th>Payment</th><th>By</th><th>Action</th></tr></thead>
+                <tbody id="salesTbody"><tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">No sales records</td></tr></tbody>
               </table>
             </div>
           </div>
         </div>
 
-        <!-- ===================== DRUG PRICING (ADMIN ONLY) ===================== -->
+        <!-- ═══ DRUG PRICING (ADMIN) ═══ -->
         <div id="mod-pricing" class="module">
           <div class="card">
             <div class="card-header">
-              <div><div class="card-title">💰 Drug Pricing</div><div class="card-subtitle">Set cost price &amp; selling price — Admin only</div></div>
-              <button class="btn btn-outline btn-sm" onclick="exportPricingCSV()">⬇ Export</button>
+              <div><div class="card-title">💰 Drug Pricing</div><div class="card-subtitle">Set cost &amp; selling price — Admin only</div></div>
             </div>
-            <div class="alert-box info" style="margin-bottom:12px">Only the Administrator can set drug prices. Pharmacists can view prices but <b>cannot modify them</b>.</div>
+            <div class="alert-box info" style="margin-bottom:12px">Only Administrator can set drug prices. Pharmacist can generate bills but cannot modify prices.</div>
             <div class="tbl-wrap">
               <table>
-                <thead><tr><th>Drug Name</th><th>Form / Strength</th><th>Unit</th><th>Cost Price (₹)</th><th>Selling Price / MRP (₹)</th><th>Margin %</th><th>Last Updated</th><th>Action</th></tr></thead>
+                <thead><tr><th>Drug</th><th>Form/Strength</th><th>Unit</th><th>Cost Price ₹</th><th>Selling MRP ₹</th><th>Margin</th><th>Updated</th><th>Action</th></tr></thead>
                 <tbody id="pricingTbody"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Loading...</td></tr></tbody>
               </table>
             </div>
@@ -900,33 +873,31 @@ tr:last-child td { border-bottom: none; }
 
 <!-- ===================== MODALS ===================== -->
 
-<!-- BILL PRINT MODAL -->
+<!-- BILL MODAL -->
 <div class="modal-overlay hidden" id="modalBill">
-  <div class="modal-box" style="max-width:700px;background:#fff;color:#000">
-    <div class="modal-header" style="background:#f8f9fa;border-bottom:2px solid #e2e8f0">
+  <div class="modal-box" style="max-width:680px;background:#fff;color:#000">
+    <div class="modal-header" style="background:#f8fafc">
       <h3 style="color:#1e293b">🧾 Pharmacy Bill</h3>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-teal btn-sm" onclick="printBill()">🖨️ Print</button>
+        <button class="btn btn-teal btn-sm" onclick="window.print()">🖨️ Print</button>
         <button class="modal-close" onclick="closeModal('modalBill')">✕</button>
       </div>
     </div>
-    <div class="modal-body" id="billPrintArea" style="padding:24px;font-family:'IBM Plex Sans',sans-serif;color:#1e293b">
-      <!-- Bill content injected by JS -->
-    </div>
+    <div class="modal-body" id="billPrintArea"></div>
   </div>
 </div>
 
 <!-- PRICE EDIT MODAL -->
 <div class="modal-overlay hidden" id="modalPriceEdit">
-  <div class="modal-box" style="max-width:440px">
+  <div class="modal-box" style="max-width:420px">
     <div class="modal-header"><h3>💰 Set Drug Price</h3><button class="modal-close" onclick="closeModal('modalPriceEdit')">✕</button></div>
     <div class="modal-body">
-      <div id="priceEditDrugName" style="font-weight:700;font-size:15px;margin-bottom:16px;color:var(--teal)"></div>
+      <div id="priceEditName" style="font-weight:700;font-size:15px;margin-bottom:16px;color:var(--teal)"></div>
       <div class="form-grid">
-        <div class="form-group-sm"><label>Cost Price (₹) *<br><small style="color:var(--text3)">Purchase/landing cost</small></label><input type="number" id="peCost" min="0" step="0.01" placeholder="0.00"></div>
-        <div class="form-group-sm"><label>Selling Price / MRP (₹) *<br><small style="color:var(--text3)">Price charged to patient</small></label><input type="number" id="peMrp" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="form-group-sm"><label>Cost Price ₹ *</label><input type="number" id="peCost" min="0" step="0.01" placeholder="0.00" oninput="priceMarginCalc()"></div>
+        <div class="form-group-sm"><label>Selling MRP ₹ *</label><input type="number" id="peMrp" min="0" step="0.01" placeholder="0.00" oninput="priceMarginCalc()"></div>
       </div>
-      <div style="font-size:12px;color:var(--text3);margin-top:8px" id="priceMarginPreview"></div>
+      <div id="marginPreview" style="font-size:12px;color:var(--text3);margin-top:8px"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modalPriceEdit')">Cancel</button>
@@ -1275,6 +1246,9 @@ tr:last-child td { border-bottom: none; }
 
 <script>
 // ============================================================
+// 🔥 FIREBASE CONFIG — Replace with your project credentials
+// ============================================================
+// ============================================================
 // FIREBASE SYNC ENGINE — identical to HIS (no hardcoded keys)
 // ============================================================
 let fbApp = null, fbDb = null, fbConnected = false;
@@ -1359,10 +1333,6 @@ function setSyncBadge(state) {
 }
 
 function fbInit(cfg) {
-  if (!cfg || !cfg.apiKey || !cfg.databaseURL) {
-    fbSetStatus('❌','No config — go to Settings and enter Firebase credentials','#f85149');
-    return false;
-  }
   try {
     if (fbApp) { try { fbApp.delete(); } catch(e) {} fbApp=null; fbDb=null; fbConnected=false; }
     fbApp = firebase.initializeApp(cfg, 'pharma_' + Date.now());
@@ -1398,16 +1368,16 @@ function saveAccounts(a) { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(a))
 function initDefaultAccounts() {
   if (getAccounts()) return;
   saveAccounts([
-    { username:'admin',   password:'Admin@1234',   name:'Administrator',  role:'admin',    dept:'Administration', protected:true  },
-    { username:'billing',    password:'Billing@1234',    name:'Billing Account', role:'accounts',    dept:'Billing',       protected:false },
-    { username:'pharmacist', password:'Pharma@1234',    name:'Pharmacist',      role:'pharmacist',  dept:'Pharmacy',      protected:false }
+    { username:'admin',      password:'Admin@1234',   name:'Administrator',  role:'admin',       dept:'Administration', protected:true  },
+    { username:'billing',    password:'Billing@1234', name:'Billing Account', role:'accounts',   dept:'Billing',       protected:false },
+    { username:'pharmacist', password:'Pharma@1234',  name:'Pharmacist',      role:'pharmacist', dept:'Pharmacy',      protected:false }
   ]);
 }
 // ============================================================
 // STATE
 // ============================================================
-var currentUser = null;
-var currentUserData = null;
+let currentUser = null;
+let currentUserData = null;
 let allDrugs = [];
 let allItems = [];
 let allVendors = [];
@@ -1420,35 +1390,35 @@ let allNarc = [];
 let allAudit = [];
 let allReturns = [];
 let allRates = [];
-let allSales = [];
-let allPricing = {};   // drugKey → { cost, mrp, updatedAt, updatedBy }
-let posCart = [];      // [{ stockKey, drugName, batch, qty, mrp, maxQty }]
-let posPricingEditKey = null;
 let poItemCount = 0;
 let grnItemCount = 0;
 let indentItemCount = 0;
 let dispItemCount = 0;
 let editingDrugKey = null;
+let allSales    = [];
+let allPricing  = {};   // drugKey → { cost, mrp }
+let posCart     = [];
+let _priceEditKey = null;
 
 // ============================================================
 // AUTH — localStorage accounts, same pattern as HIS
 // ============================================================
 
 window.addEventListener('DOMContentLoaded', () => {
-  // Always ensure the three built-in accounts exist (merge, never overwrite custom)
-  (function ensureAccounts() {
-    const defaults = [
-      { username:'admin',      password:'Admin@1234',   name:'Administrator', role:'admin',      dept:'Administration', protected:true  },
-      { username:'billing',    password:'Billing@1234', name:'Billing',       role:'accounts',   dept:'Billing',        protected:false },
-      { username:'pharmacist', password:'Pharma@1234',  name:'Pharmacist',    role:'pharmacist', dept:'Pharmacy',       protected:false }
+  // Merge-seed: always ensure defaults exist without overwriting custom accounts
+  (function() {
+    const defs = [
+      { username:'admin',      password:'Admin@1234',   name:'Administrator',  role:'admin',       dept:'Administration', protected:true  },
+      { username:'billing',    password:'Billing@1234', name:'Billing Account', role:'accounts',   dept:'Billing',       protected:false },
+      { username:'pharmacist', password:'Pharma@1234',  name:'Pharmacist',      role:'pharmacist', dept:'Pharmacy',      protected:false }
     ];
-    let existing = [];
-    try { existing = JSON.parse(localStorage.getItem('pharma_accounts') || '[]') || []; } catch(e) { existing = []; }
-    defaults.forEach(def => {
-      if (!existing.find(a => a.username === def.username)) existing.push(def);
-    });
-    localStorage.setItem('pharma_accounts', JSON.stringify(existing));
+    let accts = [];
+    try { accts = JSON.parse(localStorage.getItem('pharma_accounts') || '[]') || []; } catch(e) { accts = []; }
+    let changed = false;
+    defs.forEach(d => { if (!accts.find(a => a.username === d.username)) { accts.push(d); changed = true; } });
+    if (changed || !accts.length) localStorage.setItem('pharma_accounts', JSON.stringify(accts));
   })();
+  initDefaultAccounts();
   const hashCfg = fbCheckUrlHash();
   const cfg = hashCfg || fbGetConfig();
   if (cfg && cfg.apiKey && cfg.databaseURL) {
@@ -1456,18 +1426,6 @@ window.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => fbInit(cfg), 50);
   } else {
     setSyncBadge('local');
-  }
-  // Also store baked config to localStorage so Settings panel shows it
-  if (FIREBASE_BAKED_CONFIG && FIREBASE_BAKED_CONFIG.apiKey) {
-    try {
-      if (!localStorage.getItem(FB_CFG_KEY)) {
-        localStorage.setItem(FB_CFG_KEY, JSON.stringify(FIREBASE_BAKED_CONFIG));
-      }
-    } catch(e) {}
-  }
-  // Persist baked config to localStorage so Settings shows it filled
-  if (FIREBASE_BAKED_CONFIG && FIREBASE_BAKED_CONFIG.apiKey) {
-    try { localStorage.setItem(FB_CFG_KEY, JSON.stringify(FIREBASE_BAKED_CONFIG)); } catch(e) {}
   }
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
@@ -1479,14 +1437,25 @@ function showErr(msg) {
   if (el) { el.textContent = msg; el.className = 'login-err err'; }
 }
 
-function doLogin() {
-  // Delegate to the form's onsubmit handler
-  var form = document.querySelector('#loginScreen form');
-  if (form) {
-    var evt = new Event('submit', {cancelable:true, bubbles:true});
-    form.dispatchEvent(evt);
-  }
+async function doLogin() {
+  const username = (document.getElementById('loginUsername').value || '').trim().toLowerCase();
+  const pass     = (document.getElementById('loginPassword').value || '');
+  showErr('');
+  if (!username) { showErr('Enter your username.'); return; }
+  if (!pass)     { showErr('Enter your password.'); return; }
+  const accounts = getAccounts() || [];
+  const acct = accounts.find(a => a.username === username);
+  if (!acct)             { showErr('Invalid username or password.'); return; }
+  if (acct.disabled)     { showErr('Account disabled. Contact admin.'); return; }
+  if (acct.password !== pass) { showErr('Invalid username or password.'); return; }
+  // In-memory session only — no localStorage persistence
+  currentUser     = { uid: username, username };
+  currentUserData = { ...acct };
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  initApp();
 }
+
 async function doLogout() {
   try { await logAudit('auth', 'LOGOUT', currentUserData?.username || '', ''); } catch(e) {}
   currentUser = null; currentUserData = null;
@@ -1503,50 +1472,16 @@ async function doLogout() {
 function initApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-  if (!currentUserData) { console.error('initApp: currentUserData is null'); return; }
   const name = currentUserData.name || currentUserData.username || 'User';
-  const role = currentUserData.role || 'pharmacist';
-  const isAdmin = role === 'admin';
-
-  // Sidebar user info
-  const snEl = document.getElementById('sidebarName');
-  const srEl = document.getElementById('sidebarRole');
-  const avEl = document.getElementById('avatarInitials');
-  if (snEl) snEl.textContent = name;
-  if (srEl) srEl.textContent = role.replace('_',' ').toUpperCase();
-  if (avEl) avEl.textContent = name.charAt(0).toUpperCase();
-
-  // Clock
-  try {
-    setInterval(() => {
-      const d = document.getElementById('topbarDate');
-      if (d) d.textContent = new Date().toLocaleString('en-IN');
-    }, 1000);
-  } catch(e) {}
-
-  // ── RBAC: show/hide nav sections and buttons by role ──────
-  // Admin-only nav items
-  const adminOnlyNav = ['navInventory','navPurchase','navPricing'];
-  adminOnlyNav.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = isAdmin ? '' : 'none';
-  });
-
-  // Pharmacist nav: show billing section
-  const navBilling = document.getElementById('navBilling');
-  if (navBilling) navBilling.style.display = '';
-
-  // RBAC: only hide the Drug Pricing nav for non-admin (everything else stays visible)
-  const navPricing = document.getElementById('navPricing');
-  if (navPricing) navPricing.style.display = isAdmin ? '' : 'none';
-
-  // Load data and dashboard
-  if (fbDb && fbConnected) loadAllData();
+  document.getElementById('sidebarName').textContent = name;
+  document.getElementById('sidebarRole').textContent = (currentUserData.role || 'user').replace('_',' ').toUpperCase();
+  document.getElementById('avatarInitials').textContent = name.charAt(0).toUpperCase();
+  setInterval(() => {
+    document.getElementById('topbarDate').textContent = new Date().toLocaleString('en-IN');
+  }, 1000);
+  loadAllData();
   loadDashboard();
   buildReportButtons();
-
-  // Navigate to appropriate default module
-  navigate(isAdmin ? 'dashboard' : 'pos');
 }
 
 async function logAudit(module, action, recordId, details) {
@@ -1604,19 +1539,18 @@ function loadAllData() {
     allRates=[]; if(snap.val()) snap.forEach(c=>allRates.push({key:c.key,...c.val()})); renderRates();
   });
   fbDb.ref(p+'/sales').on('value', snap => {
-    allSales=[]; if(snap.val()) snap.forEach(c=>allSales.push({key:c.key,...c.val()})); renderSales();
+    allSales=[]; if(snap.val()) snap.forEach(c=>allSales.push({key:c.key,...c.val()}));
+    if(document.getElementById('mod-sales')?.classList.contains('active')) renderSales();
   });
   fbDb.ref(p+'/drug_pricing').on('value', snap => {
     allPricing = snap.val() || {};
-    renderPricing();
+    if(document.getElementById('mod-pricing')?.classList.contains('active')) renderPricing();
   });
 }
 
 function loadDashboard() {
-  if (!fbDb) {
-    const _dsg = document.getElementById('dashStats');
-    if (!_dsg) return;
-    _dsg.innerHTML = `
+  if (!fbDb) { 
+    document.getElementById('dashStats').innerHTML = `
       <div class="alert-box warn" style="grid-column:1/-1">
         <div style="font-size:14px;font-weight:700;margin-bottom:8px">🔄 Connecting to Firebase…</div>
         <div style="margin-bottom:8px">Please wait — auto-connecting. If this persists, check your internet connection.</div>
@@ -1632,9 +1566,7 @@ function loadDashboard() {
   const pendingPO = allPOs.filter(p => p.status === 'Pending Approval' || p.status === 'Approved');
   const totalStockVal = allStock.reduce((a,s) => a + (parseFloat(s.purchaseRate||0) * parseFloat(s.qty||0)), 0);
 
-  const _ds2 = document.getElementById('dashStats');
-  if (!_ds2) return;
-  _ds2.innerHTML = `
+  document.getElementById('dashStats').innerHTML = `
     <div class="stat-card stat-teal"><div class="stat-icon">💊</div><div class="stat-info"><p>${allDrugs.length}</p><span>Drugs in Master</span></div></div>
     <div class="stat-card stat-amber"><div class="stat-icon">⚠️</div><div class="stat-info"><p>${low.length}</p><span>Low Stock Items</span></div></div>
     <div class="stat-card stat-red"><div class="stat-icon">🗑️</div><div class="stat-info"><p>${expired.length}</p><span>Expired Items</span></div></div>
@@ -1645,7 +1577,6 @@ function loadDashboard() {
 
   // Low stock list
   const lowDiv = document.getElementById('lowStockList');
-  if (!lowDiv) return;
   if (low.length === 0) { lowDiv.innerHTML = '<p style="color:var(--green);font-size:13px">✅ All items above reorder level</p>'; }
   else {
     lowDiv.innerHTML = low.slice(0,8).map(s => `
@@ -1722,7 +1653,6 @@ function filterDrugs() {
 }
 
 async function saveDrug() {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can modify inventory','warn'); return; }
   const d = {
     generic: document.getElementById('dGeneric').value.trim(),
     brand: document.getElementById('dBrand').value.trim(),
@@ -1784,7 +1714,6 @@ function editDrug(key) {
 }
 
 async function deleteDrug(key) {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can modify inventory','warn'); return; }
   if (!confirm('Delete this drug from master?')) return;
   await fbDb.ref(FB_DATA_PATH+'/drugs/' + key).remove();
   await logAudit('drug_master', 'DELETE', key, '');
@@ -1828,7 +1757,6 @@ function filterItems() {
 }
 
 async function saveItem() {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can modify inventory','warn'); return; }
   const d = {
     name: document.getElementById('iName').value.trim(),
     type: document.getElementById('iType').value,
@@ -1846,7 +1774,6 @@ async function saveItem() {
 }
 
 async function deleteItem(key) {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can modify inventory','warn'); return; }
   if (!confirm('Delete this item?')) return;
   await fbDb.ref(FB_DATA_PATH+'/items/' + key).remove();
   await logAudit('item_master', 'DELETE', key, '');
@@ -1878,7 +1805,6 @@ function populateVendorDrops() {
 }
 
 async function saveVendor() {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can modify inventory','warn'); return; }
   const d = {
     name: document.getElementById('vName').value.trim(),
     contact: document.getElementById('vContact').value.trim(),
@@ -1927,7 +1853,6 @@ function addPOItem() {
 }
 
 async function savePO() {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can manage purchase/indents','warn'); return; }
   const items = [];
   document.querySelectorAll('[id^="pod_"]').forEach((el, i) => {
     const n = el.id.split('_')[1];
@@ -1972,7 +1897,6 @@ function renderPOs() {
 }
 
 async function approvePO(key) {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can manage purchase/indents','warn'); return; }
   await fbDb.ref(FB_DATA_PATH+'/purchase_orders/' + key).update({ status: 'Approved', approvedBy: currentUserData.name, approvedAt: new Date().toISOString() });
   await logAudit('purchase_orders', 'APPROVE', key, '');
   toast('PO Approved', 'success');
@@ -2007,7 +1931,6 @@ function addGRNItem() {
 }
 
 async function saveGRN() {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can manage purchase/indents','warn'); return; }
   const items = [];
   document.querySelectorAll('[id^="grnd_"]').forEach(el => {
     const n = el.id.split('_')[1];
@@ -2163,7 +2086,6 @@ function addIndentItem() {
 }
 
 async function saveIndent() {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can manage purchase/indents','warn'); return; }
   const items = [];
   document.querySelectorAll('[id^="indd_"]').forEach(el => {
     const n = el.id.split('_')[1];
@@ -2207,19 +2129,16 @@ function renderIndents(tab) {
 }
 
 async function approveIndent(key) {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can manage purchase/indents','warn'); return; }
   await fbDb.ref(FB_DATA_PATH+'/indents/' + key).update({ status: 'Approved', approvedBy: currentUserData.name, approvedAt: new Date().toISOString() });
   await logAudit('indents', 'APPROVE', key, '');
   toast('Indent approved', 'success');
 }
 async function rejectIndent(key) {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can manage purchase/indents','warn'); return; }
   await fbDb.ref(FB_DATA_PATH+'/indents/' + key).update({ status: 'Rejected', rejectedBy: currentUserData.name });
   await logAudit('indents', 'REJECT', key, '');
   toast('Indent rejected', 'warn');
 }
 async function issueIndent(key) {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Only admin can manage purchase/indents','warn'); return; }
   await fbDb.ref(FB_DATA_PATH+'/indents/' + key).update({ status: 'Issued', issuedBy: currentUserData.name, issuedAt: new Date().toISOString() });
   await logAudit('indents', 'ISSUE', key, '');
   toast('Indent marked as issued', 'success');
@@ -2635,9 +2554,7 @@ const reportDefs = [
 ];
 
 function buildReportButtons() {
-  const rb = document.getElementById('reportButtons');
-  if (!rb) return;
-  rb.innerHTML = reportDefs.map(r =>
+  document.getElementById('reportButtons').innerHTML = reportDefs.map(r =>
     `<button class="card" style="cursor:pointer;text-align:left;border:1.5px solid var(--border);padding:16px;border-radius:8px;transition:border-color 0.15s" onclick="runReport('${r.id}')" onmouseover="this.style.borderColor='var(--teal)'" onmouseout="this.style.borderColor='var(--border)'">
       <div style="font-size:22px;margin-bottom:6px">${r.icon}</div>
       <div style="font-size:13px;font-weight:600;color:var(--text)">${r.name}</div>
@@ -2774,7 +2691,7 @@ function formatMoney(n) { if (!n) return '0'; return parseFloat(n).toLocaleStrin
 // ============================================================
 const roleAccess = {
   admin: ['all'],
-  pharmacist: ['dashboard','drugmaster','itemmaster','stock','dispensing','indents','returns','expiry','narcotic','lasa','reports','audit','pos','sales'],
+  pharmacist: ['dashboard','drugmaster','itemmaster','stock','dispensing','indents','expiry','narcotic','lasa','reports','audit'],
   store_manager: ['dashboard','drugmaster','itemmaster','stock','vendors','purchase','grn','indents','expiry','reports','audit'],
   nurse: ['dashboard','indents','dispensing'],
   doctor: ['dashboard','indents'],
@@ -2812,30 +2729,66 @@ window.seedDemoData = async function() {
   toast('Demo data seeded!', 'success');
 };
 
+// ============================================================
+// ENTER KEY NAVIGATION — Global handler for all inputs
+// ============================================================
+// Moves focus to next input/select/textarea/button in same
+// modal or form on Enter. On the last field calls submit fn.
+// Configured per-modal via data-enter-submit on containers.
 
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Enter') return;
+  const tag = e.target.tagName;
+  // Only handle input and select; not textarea (Enter = newline)
+  if (tag === 'TEXTAREA') return;
+  if (tag !== 'INPUT' && tag !== 'SELECT') return;
+  e.preventDefault();
+
+  // Find the enclosing modal or form context
+  const container = e.target.closest('.modal-box, .login-card, .card');
+  if (!container) return;
+
+  // All focusable fields in this container
+  const fields = Array.from(container.querySelectorAll(
+    'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
+  ));
+  const idx = fields.indexOf(e.target);
+
+  if (idx >= 0 && idx < fields.length - 1) {
+    // Move to next field
+    fields[idx + 1].focus();
+    if (fields[idx + 1].tagName === 'INPUT') fields[idx + 1].select();
+  } else {
+    // Last field — trigger the submit button in this context
+    const submitBtn = container.querySelector(
+      '.modal-footer .btn-teal, .btn-primary, [data-submit]'
+    );
+    if (submitBtn) submitBtn.click();
+  }
+}, true);
+
+// Search inputs — Enter triggers the filter immediately (already live via oninput)
+// but also prevents form submit bubbling
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && e.target.classList.contains('search-input')) {
+    e.preventDefault();
+  }
+});
 
 
 // ============================================================
 // FIREBASE CONFIG — Save/Load/Test (matches HIS pattern)
 // ============================================================
 function fbSaveConfig() {
-  const apiKey      = (document.getElementById('fb_apiKey')||{value:''}).value.trim();
-  const databaseURL = (document.getElementById('fb_dbUrl')||{value:''}).value.trim();
-  const authDomain  = (document.getElementById('fb_authDomain')||{value:''}).value.trim();
-  const projectId   = (document.getElementById('fb_projectId')||{value:''}).value.trim();
-  if (!apiKey || !databaseURL) { toast('API Key and Database URL are required','error'); return; }
-  const cfg = { apiKey, databaseURL };
-  if (authDomain) cfg.authDomain = authDomain;
-  if (projectId)  cfg.projectId  = projectId;
-  localStorage.setItem(FB_CFG_KEY, JSON.stringify(cfg));
-  fbSetStatus('🟡','Connecting...','#e3b341');
-  const ok = fbInit(cfg);
+  // With hardcoded config this just re-connects
+  setSyncBadge('connecting');
+  const ok = fbInit(fbGetConfig());
   const box = document.getElementById('fbStatusBox');
   const txt = document.getElementById('fbStatusText');
   if (box) box.style.display = 'flex';
   if (ok) {
-    if (txt) txt.innerHTML = '✅ Connected — data syncing in real-time across all devices';
-    toast('Firebase connected — syncing…','success');
+    if (txt) txt.innerHTML = '✅ Connected — data will sync in real-time across all devices';
+    toast('Firebase connected — syncing data…','success');
     loadAllData(); loadDashboard(); buildReportButtons();
   } else {
     if (txt) txt.textContent = '❌ Connection failed — check credentials';
@@ -2900,7 +2853,7 @@ function fbCopyShareLink() {
 // Pre-fill Firebase config fields when navigating to settings
 function fbPopulateFields() {
   // Pre-fill from hardcoded config
-  const cfg = fbGetConfig();
+  const cfg = FIREBASE_CONFIG;
   const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
   set('fb_apiKey',     cfg.apiKey);
   set('fb_dbUrl',      cfg.databaseURL);
@@ -2927,25 +2880,24 @@ function navigate(module) {
   if (el) el.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => {
     const oc = n.getAttribute('onclick') || '';
-    if (oc.includes("'" + module + "'") || oc.includes('"' + module + '"')) n.classList.add('active');
+    if (oc.includes("'" + module + "'")) n.classList.add('active');
   });
   const titles = {
     dashboard:'Dashboard', drugmaster:'Drug Master', itemmaster:'Item Master',
     stock:'Stock Ledger', vendors:'Vendor Master', purchase:'Purchase Orders',
-    grn:'GRN', indents:'Ward Indents', dispensing:'Drug Dispensing',
+    grn:'Goods Receipt (GRN)', indents:'Ward Indents', dispensing:'Drug Dispensing',
     returns:'Drug Returns', expiry:'Expiry Register', narcotic:'Narcotic Register',
     lasa:'LASA / High Risk', reports:'Reports', audit:'Audit Trail',
-    users:'User Management', settings:'Settings', pos:'Point of Sale',
-    sales:'Sales Register', pricing:'Drug Pricing'
+    users:'User Management', settings:'Settings',
+    pos:'Point of Sale', sales:'Sales Register', pricing:'Drug Pricing'
   };
-  const titleEl = document.getElementById('topbarTitle');
-  if (titleEl) titleEl.textContent = titles[module] || module;
+  const t = document.getElementById('topbarTitle');
+  if (t) t.textContent = titles[module] || module;
   if (module === 'settings') { try { fbPopulateFields(); } catch(e) {} }
   if (module === 'users')    { try { refreshUsersPanel(); } catch(e) {} }
-  if (module === 'sales')    { try { renderSales(); } catch(e) {} }
-  if (module === 'pricing')  { try { renderPricing(); } catch(e) {} }
+  if (module === 'sales')    renderSales();
+  if (module === 'pricing')  renderPricing();
 }
-
 function switchTab(moduleKey, tabKey) {
   const prefix = moduleKey === 'purchase' ? 'ptab' : moduleKey === 'indent' ? 'itab' : moduleKey;
   document.querySelectorAll(`[id^="${prefix}-"]`).forEach(p => p.classList.remove('active'));
@@ -2978,7 +2930,7 @@ function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
 function fbPopulateFields() {
   // Pre-fill from hardcoded config
-  const cfg = fbGetConfig();
+  const cfg = FIREBASE_CONFIG;
   const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
   set('fb_apiKey',     cfg.apiKey);
   set('fb_dbUrl',      cfg.databaseURL);
@@ -2997,367 +2949,248 @@ function fbPopulateFields() {
 }
 
 
-// ============================================================
-// DRUG PRICING — Admin-only cost + selling price management
-// ============================================================
+
+// ═══════════════════════════════════════════════════════════════
+// DRUG PRICING — Admin only
+// ═══════════════════════════════════════════════════════════════
 function renderPricing() {
   const isAdmin = currentUserData && currentUserData.role === 'admin';
   const tb = document.getElementById('pricingTbody');
   if (!tb) return;
-  if (!allDrugs.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">No drugs in master. Add drugs first.</td></tr>'; return; }
+  if (!allDrugs.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">No drugs in master yet.</td></tr>'; return; }
   tb.innerHTML = allDrugs.map(d => {
     const p = allPricing[d.key] || {};
-    const cost = parseFloat(p.cost || 0);
-    const mrp  = parseFloat(p.mrp  || 0);
-    const margin = cost > 0 && mrp > 0 ? (((mrp - cost) / cost) * 100).toFixed(1) : '—';
-    const marginColor = parseFloat(margin) > 30 ? 'var(--green)' : parseFloat(margin) > 0 ? 'var(--amber)' : 'var(--red)';
+    const cost = parseFloat(p.cost||0), mrp = parseFloat(p.mrp||0);
+    const margin = cost>0&&mrp>0 ? (((mrp-cost)/cost)*100).toFixed(1)+'%' : '—';
+    const mc = parseFloat(margin)>0 ? 'var(--green)' : 'var(--red)';
     return `<tr>
-      <td><b>${d.generic}</b>${d.brand ? '<br><small style="color:var(--text3)">'+d.brand+'</small>' : ''}</td>
-      <td>${d.form||'—'} ${d.strength||''}</td>
+      <td><b>${d.generic}</b>${d.brand?'<br><small style="color:var(--text3)">'+d.brand+'</small>':''}</td>
+      <td>${d.form||''} ${d.strength||''}</td>
       <td>${d.unit||'—'}</td>
-      <td style="font-family:var(--mono)">${cost > 0 ? '₹'+cost.toFixed(2) : '<span style="color:var(--text3)">Not set</span>'}</td>
-      <td style="font-family:var(--mono);font-weight:700">${mrp > 0 ? '₹'+mrp.toFixed(2) : '<span style="color:var(--text3)">Not set</span>'}</td>
-      <td style="color:${marginColor}">${margin !== '—' ? margin+'%' : '—'}</td>
-      <td style="font-size:11px;color:var(--text3)">${p.updatedAt ? new Date(p.updatedAt).toLocaleDateString('en-IN') : '—'}</td>
-      <td>${isAdmin ? '<button class="btn btn-outline btn-sm" onclick="openPriceEdit(''+d.key+'',''+d.generic.replace(/'/g,"\'")+'')">✏️ Set Price</button>' : '<span style="color:var(--text3);font-size:12px">View only</span>'}</td>
+      <td style="font-family:var(--mono)">${cost>0?'₹'+cost.toFixed(2):'<span style="color:var(--text3)">—</span>'}</td>
+      <td style="font-family:var(--mono);font-weight:700">${mrp>0?'₹'+mrp.toFixed(2):'<span style="color:var(--text3)">—</span>'}</td>
+      <td style="color:${mc}">${margin}</td>
+      <td style="font-size:11px">${p.updatedAt?new Date(p.updatedAt).toLocaleDateString('en-IN'):'—'}</td>
+      <td>${isAdmin?`<button class="btn btn-outline btn-sm" onclick="openPriceEdit('${d.key}','${d.generic.replace(/'/g,"\'")}')">✏️ Set</button>`:'View only'}</td>
     </tr>`;
   }).join('');
 }
 
-function openPriceEdit(drugKey, drugName) {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Drug prices can only be set by Admin','warn'); return; }
-  posPricingEditKey = drugKey;
-  const p = allPricing[drugKey] || {};
-  document.getElementById('priceEditDrugName').textContent = drugName;
+function openPriceEdit(key, name) {
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Admin only','warn'); return; }
+  _priceEditKey = key;
+  const p = allPricing[key] || {};
+  document.getElementById('priceEditName').textContent = name;
   document.getElementById('peCost').value = p.cost || '';
   document.getElementById('peMrp').value  = p.mrp  || '';
-  priceMarginUpdate();
+  priceMarginCalc();
   openModal('modalPriceEdit');
-  document.getElementById('peCost').addEventListener('input', priceMarginUpdate);
-  document.getElementById('peMrp').addEventListener('input', priceMarginUpdate);
 }
 
-function priceMarginUpdate() {
-  const cost = parseFloat(document.getElementById('peCost').value) || 0;
-  const mrp  = parseFloat(document.getElementById('peMrp').value)  || 0;
-  const preview = document.getElementById('priceMarginPreview');
-  if (!preview) return;
-  if (cost > 0 && mrp > 0) {
-    const margin = (((mrp - cost) / cost) * 100).toFixed(1);
-    preview.textContent = `Margin: ${margin}% | Profit per unit: ₹${(mrp - cost).toFixed(2)}`;
-    preview.style.color = parseFloat(margin) > 0 ? 'var(--green)' : 'var(--red)';
-  } else { preview.textContent = ''; }
+function priceMarginCalc() {
+  const cost = parseFloat(document.getElementById('peCost').value)||0;
+  const mrp  = parseFloat(document.getElementById('peMrp').value)||0;
+  const el   = document.getElementById('marginPreview');
+  if (el && cost>0 && mrp>0) {
+    const m = (((mrp-cost)/cost)*100).toFixed(1);
+    el.textContent = `Margin: ${m}% | Profit/unit: ₹${(mrp-cost).toFixed(2)}`;
+    el.style.color = parseFloat(m)>0 ? 'var(--green)' : 'var(--red)';
+  } else if (el) el.textContent = '';
 }
 
 async function saveDrugPrice() {
-  if (!currentUserData || currentUserData.role !== 'admin') { toast('Drug prices can only be set by Admin','warn'); return; }
+  if (!currentUserData || currentUserData.role !== 'admin') { toast('Admin only','warn'); return; }
   const cost = parseFloat(document.getElementById('peCost').value);
   const mrp  = parseFloat(document.getElementById('peMrp').value);
-  if (isNaN(cost) || cost < 0) { toast('Enter valid cost price','error'); return; }
-  if (isNaN(mrp) || mrp <= 0) { toast('Enter valid selling price','error'); return; }
-  if (mrp < cost) { if (!confirm('Selling price is less than cost price. Continue?')) return; }
-  const entry = { cost, mrp, updatedAt: new Date().toISOString(), updatedBy: currentUserData.username };
-  await fbDb.ref(FB_DATA_PATH+'/drug_pricing/'+posPricingEditKey).set(entry);
-  await logAudit('pricing', 'SET_PRICE', posPricingEditKey, { cost, mrp });
-  toast('Price saved successfully','success');
+  if (isNaN(cost)||cost<0) { toast('Enter valid cost price','error'); return; }
+  if (isNaN(mrp)||mrp<=0)  { toast('Enter valid selling price','error'); return; }
+  if (!fbDb) { toast('Not connected to Firebase','error'); return; }
+  await fbDb.ref(FB_DATA_PATH+'/drug_pricing/'+_priceEditKey).set({ cost, mrp, updatedAt:new Date().toISOString(), updatedBy:currentUserData.username });
+  await logAudit('pricing','SET_PRICE',_priceEditKey,{cost,mrp});
+  toast('Price saved','success');
   closeModal('modalPriceEdit');
 }
 
-function exportPricingCSV() {
-  const rows = [['Drug','Form','Strength','Unit','Cost (₹)','MRP (₹)','Margin %','Updated']];
-  allDrugs.forEach(d => {
-    const p = allPricing[d.key] || {};
-    const cost = parseFloat(p.cost||0), mrp = parseFloat(p.mrp||0);
-    rows.push([d.generic, d.form||'', d.strength||'', d.unit||'', cost||'', mrp||'',
-      cost>0&&mrp>0?(((mrp-cost)/cost)*100).toFixed(1)+'%':'', p.updatedAt?new Date(p.updatedAt).toLocaleDateString('en-IN'):'']);
-  });
-  downloadCSV(rows, 'drug-pricing.csv');
-}
+// ═══════════════════════════════════════════════════════════════
+// POINT OF SALE
+// ═══════════════════════════════════════════════════════════════
+function posSearchDrug(q) {
+  const div = document.getElementById('posDrugResults');
+  if (!q || q.length < 2) { div.style.display='none'; return; }
+  const ql = q.toLowerCase();
+  const matches = allDrugs.filter(d =>
+    d.generic.toLowerCase().includes(ql) || (d.brand||'').toLowerCase().includes(ql)
+  ).filter(d => allPricing[d.key] && allPricing[d.key].mrp > 0);
 
-// ============================================================
-// POINT OF SALE — Pharmacist-facing drug dispensing + billing
-// ============================================================
-function posSearchDrug(query) {
-  const resultsDiv = document.getElementById('posDrugResults');
-  if (!query || query.length < 2) { resultsDiv.style.display='none'; return; }
-  const onlyInStock = document.getElementById('posSearchType').value === 'instock';
-  const q = query.toLowerCase();
-  // Search drugs with pricing AND stock
-  const matches = [];
-  allDrugs.forEach(d => {
-    if (!d.generic.toLowerCase().includes(q) && !(d.brand||'').toLowerCase().includes(q)) return;
-    const pricing = allPricing[d.key];
-    if (!pricing || !pricing.mrp) return; // skip drugs with no price set
-    // Find stock batches for this drug
-    const batches = allStock.filter(s => (s.drugName||'').toLowerCase() === (d.generic||'').toLowerCase() && s.qty > 0);
-    if (onlyInStock && !batches.length) return;
-    matches.push({ drug: d, pricing, batches });
-  });
   if (!matches.length) {
-    resultsDiv.innerHTML = '<div style="padding:12px;font-size:13px;color:var(--text3)">No drugs found with pricing set. Ask admin to set prices first.</div>';
-    resultsDiv.style.display = 'block'; return;
+    div.innerHTML = '<div style="padding:12px;font-size:13px;color:var(--text3)">No priced drugs found. Admin must set prices first.</div>';
+    div.style.display='block'; return;
   }
-  resultsDiv.innerHTML = matches.slice(0,12).map(m => {
-    const stockInfo = m.batches.length ? m.batches.map(b=>`Batch ${b.batch}: ${b.qty} ${b.unit||''}`).join(' | ') : '<span style="color:var(--red)">Out of stock</span>';
-    return `<div style="padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;hover:background:var(--surface2)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''" onclick="posAddToCart('${m.drug.key}')">
-      <div style="font-weight:600;font-size:13px">${m.drug.generic} ${m.drug.brand?'('+m.drug.brand+')':''}</div>
-      <div style="font-size:11px;color:var(--text2);margin-top:2px">${m.drug.form||''} ${m.drug.strength||''} · MRP: <b style="color:var(--teal)">₹${parseFloat(m.pricing.mrp).toFixed(2)}</b> · ${stockInfo}</div>
+  div.innerHTML = matches.slice(0,10).map(d => {
+    const pr  = allPricing[d.key];
+    const stk = allStock.filter(s => (s.drugName||'').toLowerCase()===d.generic.toLowerCase() && s.qty>0);
+    const si  = stk.length ? stk.map(b=>`Batch ${b.batch}: ${b.qty}`).join(' | ') : '<span style="color:var(--red)">Out of stock</span>';
+    return `<div style="padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''" onclick="posAddToCart('${d.key}')">
+      <div style="font-weight:600;font-size:13px">${d.generic}${d.brand?' ('+d.brand+')':''}</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:2px">${d.form||''} ${d.strength||''} · MRP: <b style="color:var(--teal)">₹${parseFloat(pr.mrp).toFixed(2)}</b> · ${si}</div>
     </div>`;
   }).join('');
-  resultsDiv.style.display = 'block';
+  div.style.display='block';
 }
 
 function posAddToCart(drugKey) {
-  const drug = allDrugs.find(d => d.key === drugKey);
-  const pricing = allPricing[drugKey];
-  if (!drug || !pricing) { toast('Drug or price not found','error'); return; }
-  const batches = allStock.filter(s => (s.drugName||'').toLowerCase() === (drug.generic||'').toLowerCase() && s.qty > 0);
-  if (!batches.length) { toast('Drug is out of stock','warn'); return; }
-  // Use first available batch (earliest expiry first)
-  const batch = batches.sort((a,b) => new Date(a.expiry||'9999')-new Date(b.expiry||'9999'))[0];
-  // Check if already in cart
-  const existing = posCart.find(c => c.stockKey === batch.key);
-  if (existing) {
-    if (existing.qty < batch.qty) { existing.qty++; posRenderCart(); }
-    else toast('Max available quantity reached','warn');
-  } else {
-    posCart.push({ stockKey: batch.key, drugKey, drugName: drug.generic, brand: drug.brand||'', batch: batch.batch||'', expiry: batch.expiry||'', qty: 1, mrp: parseFloat(pricing.mrp), maxQty: batch.qty, unit: batch.unit||'', store: batch.store||'' });
-    posRenderCart();
-  }
-  document.getElementById('posDrugSearch').value = '';
-  document.getElementById('posDrugResults').style.display = 'none';
+  const drug = allDrugs.find(d=>d.key===drugKey);
+  const pr   = allPricing[drugKey];
+  if (!drug||!pr) { toast('Drug or price not found','error'); return; }
+  const batches = allStock.filter(s=>(s.drugName||'').toLowerCase()===drug.generic.toLowerCase()&&s.qty>0)
+                           .sort((a,b)=>new Date(a.expiry||'9999')-new Date(b.expiry||'9999'));
+  if (!batches.length) { toast('Drug out of stock','warn'); return; }
+  const b = batches[0];
+  const ex = posCart.find(c=>c.stockKey===b.key);
+  if (ex) { if(ex.qty<b.qty){ex.qty++;posRenderCart();}else toast('Max stock reached','warn'); }
+  else    { posCart.push({stockKey:b.key,drugKey,drugName:drug.generic,brand:drug.brand||'',batch:b.batch||'',expiry:b.expiry||'',qty:1,mrp:parseFloat(pr.mrp),maxQty:b.qty,unit:b.unit||''}); posRenderCart(); }
+  document.getElementById('posDrugSearch').value='';
+  document.getElementById('posDrugResults').style.display='none';
 }
 
 function posRenderCart() {
-  const tb = document.getElementById('posCartBody');
-  const countEl = document.getElementById('posCartCount');
-  if (!posCart.length) {
-    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">Add drugs from search above</td></tr>';
-    if (countEl) countEl.textContent = '0 items';
-    posRecalc(); return;
-  }
-  if (countEl) countEl.textContent = posCart.length + ' item(s)';
-  tb.innerHTML = posCart.map((item, i) => `<tr>
-    <td style="padding:8px">
-      <div style="font-weight:600;font-size:12px">${item.drugName}</div>
-      <div style="font-size:10px;color:var(--text3)">Batch: ${item.batch} | Exp: ${item.expiry} | ${item.store}</div>
-    </td>
-    <td style="padding:8px;text-align:center;font-size:11px;font-family:var(--mono)">${item.batch}</td>
-    <td style="padding:8px;text-align:center">
-      <div style="display:flex;align-items:center;justify-content:center;gap:6px">
-        <button onclick="posQtyChange(${i},-1)" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--surface2)">−</button>
-        <span style="font-weight:700;min-width:30px;text-align:center">${item.qty}</span>
-        <button onclick="posQtyChange(${i},1)" style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--surface2)">+</button>
+  const tb=document.getElementById('posCartBody');
+  const cc=document.getElementById('posCartCount');
+  if(cc) cc.textContent=posCart.length+' item(s)';
+  if(!posCart.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Add drugs from search</td></tr>';posRecalc();return;}
+  tb.innerHTML=posCart.map((it,i)=>`<tr>
+    <td style="padding:8px"><div style="font-weight:600;font-size:12px">${it.drugName}</div><div style="font-size:10px;color:var(--text3)">Batch:${it.batch} Exp:${it.expiry}</div></td>
+    <td style="text-align:center;font-size:11px">${it.batch}</td>
+    <td style="text-align:center">
+      <div style="display:flex;align-items:center;justify-content:center;gap:4px">
+        <button onclick="posQty(${i},-1)" style="width:22px;height:22px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--surface2);font-size:14px;line-height:1">−</button>
+        <span style="font-weight:700;min-width:28px;text-align:center">${it.qty}</span>
+        <button onclick="posQty(${i},1)"  style="width:22px;height:22px;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--surface2);font-size:14px;line-height:1">+</button>
       </div>
-      <div style="font-size:10px;color:var(--text3);text-align:center">Max: ${item.maxQty}</div>
     </td>
-    <td style="padding:8px;text-align:right;font-family:var(--mono)">₹${item.mrp.toFixed(2)}</td>
-    <td style="padding:8px;text-align:right;font-family:var(--mono);font-weight:700">₹${(item.mrp * item.qty).toFixed(2)}</td>
-    <td style="padding:8px;text-align:center"><button onclick="posRemoveItem(${i})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:16px">✕</button></td>
+    <td style="text-align:right;font-family:var(--mono)">₹${it.mrp.toFixed(2)}</td>
+    <td style="text-align:right;font-family:var(--mono);font-weight:700">₹${(it.mrp*it.qty).toFixed(2)}</td>
+    <td style="text-align:center"><button onclick="posCart.splice(${i},1);posRenderCart()" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:16px">✕</button></td>
   </tr>`).join('');
   posRecalc();
 }
 
-function posQtyChange(index, delta) {
-  const item = posCart[index];
-  const newQty = item.qty + delta;
-  if (newQty < 1) { posRemoveItem(index); return; }
-  if (newQty > item.maxQty) { toast('Only '+item.maxQty+' available in stock','warn'); return; }
-  item.qty = newQty;
-  posRenderCart();
+function posQty(i,d){const it=posCart[i];const nq=it.qty+d;if(nq<1){posCart.splice(i,1);}else if(nq>it.maxQty){toast('Max '+it.maxQty+' available','warn');return;}else it.qty=nq;posRenderCart();}
+
+function posRecalc(){
+  const sub=posCart.reduce((s,i)=>s+i.mrp*i.qty,0);
+  const dp=parseFloat(document.getElementById('posDiscount')?.value||0);
+  const gp=parseFloat(document.getElementById('posGst')?.value||0);
+  const da=sub*dp/100, gv=(sub-da)*gp/100, tot=sub-da+gv;
+  const s=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  s('posSubtotal','₹'+sub.toFixed(2));s('posDiscAmt','-₹'+da.toFixed(2));
+  s('posGstAmt','₹'+gv.toFixed(2));s('posTotal','₹'+tot.toFixed(2));
 }
 
-function posRemoveItem(index) { posCart.splice(index, 1); posRenderCart(); }
-
-function posRecalc() {
-  const subtotal = posCart.reduce((s, i) => s + i.mrp * i.qty, 0);
-  const discPct  = parseFloat(document.getElementById('posDiscount')?.value||0);
-  const gstPct   = parseFloat(document.getElementById('posGst')?.value||0);
-  const discAmt  = subtotal * discPct / 100;
-  const afterDisc = subtotal - discAmt;
-  const gstAmt   = afterDisc * gstPct / 100;
-  const total    = afterDisc + gstAmt;
-  const set = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
-  set('posSubtotal', '₹'+subtotal.toFixed(2));
-  set('posDiscAmt',  '-₹'+discAmt.toFixed(2));
-  set('posGstAmt',   '₹'+gstAmt.toFixed(2));
-  set('posTotal',    '₹'+total.toFixed(2));
-}
-
-async function posGenerateBill() {
-  const patient  = (document.getElementById('posPatient')?.value||'').trim();
-  const uhid     = (document.getElementById('posUhid')?.value||'').trim();
-  const doctor   = (document.getElementById('posDoctor')?.value||'').trim();
-  const payMode  = document.getElementById('posPayMode')?.value||'Cash';
-  const notes    = (document.getElementById('posNotes')?.value||'').trim();
-  const discPct  = parseFloat(document.getElementById('posDiscount')?.value||0);
-  const gstPct   = parseFloat(document.getElementById('posGst')?.value||0);
-  if (!patient)      { toast('Patient name is required','error'); return; }
-  if (!posCart.length) { toast('Cart is empty — add drugs first','error'); return; }
-  const subtotal  = posCart.reduce((s,i) => s + i.mrp * i.qty, 0);
-  const discAmt   = subtotal * discPct / 100;
-  const afterDisc = subtotal - discAmt;
-  const gstAmt    = afterDisc * gstPct / 100;
-  const total     = afterDisc + gstAmt;
-  const billNo    = 'BILL-' + Date.now().toString().slice(-8);
-  const now       = new Date();
-  const bill = {
-    billNo, patient, uhid, doctor,
-    items: posCart.map(i => ({ drugName:i.drugName, brand:i.brand, batch:i.batch, expiry:i.expiry, qty:i.qty, mrp:i.mrp, amount:+(i.mrp*i.qty).toFixed(2), unit:i.unit, store:i.store, stockKey:i.stockKey })),
-    subtotal:+subtotal.toFixed(2), discountPct:discPct, discountAmt:+discAmt.toFixed(2),
-    gstPct, gstAmt:+gstAmt.toFixed(2), total:+total.toFixed(2),
-    paymentMode:payMode, notes, soldBy:currentUserData.username, soldByName:currentUserData.name,
-    createdAt:now.toISOString()
+async function posGenerateBill(){
+  const patient=(document.getElementById('posPatient')?.value||'').trim();
+  if(!patient){toast('Enter patient name','error');return;}
+  if(!posCart.length){toast('Cart is empty','error');return;}
+  if(!fbDb){toast('Not connected to Firebase','error');return;}
+  const dp=parseFloat(document.getElementById('posDiscount')?.value||0);
+  const gp=parseFloat(document.getElementById('posGst')?.value||0);
+  const sub=posCart.reduce((s,i)=>s+i.mrp*i.qty,0);
+  const da=sub*dp/100, gv=(sub-da)*gp/100, tot=sub-da+gv;
+  const bill={
+    billNo:'BILL-'+Date.now().toString().slice(-8),
+    patient,uhid:document.getElementById('posUhid')?.value||'',
+    doctor:document.getElementById('posDoctor')?.value||'',
+    paymentMode:document.getElementById('posPayMode')?.value||'Cash',
+    notes:document.getElementById('posNotes')?.value||'',
+    items:posCart.map(i=>({drugName:i.drugName,brand:i.brand,batch:i.batch,expiry:i.expiry,qty:i.qty,mrp:i.mrp,amount:+(i.mrp*i.qty).toFixed(2),unit:i.unit,stockKey:i.stockKey})),
+    subtotal:+sub.toFixed(2),discountPct:dp,discountAmt:+da.toFixed(2),
+    gstPct:gp,gstAmt:+gv.toFixed(2),total:+tot.toFixed(2),
+    soldBy:currentUserData.username,soldByName:currentUserData.name,
+    createdAt:new Date().toISOString()
   };
-  // Save bill
-  const billRef = await fbDb.ref(FB_DATA_PATH+'/sales').push(bill);
-  // Deduct stock for each item
-  for (const item of posCart) {
-    const stockItem = allStock.find(s => s.key === item.stockKey);
-    if (stockItem) {
-      const newQty = Math.max(0, (stockItem.qty||0) - item.qty);
-      await fbDb.ref(FB_DATA_PATH+'/stock/'+item.stockKey).update({ qty:newQty, updatedAt:now.toISOString() });
-    }
+  const ref=await fbDb.ref(FB_DATA_PATH+'/sales').push(bill);
+  for(const it of posCart){
+    const s=allStock.find(x=>x.key===it.stockKey);
+    if(s) await fbDb.ref(FB_DATA_PATH+'/stock/'+it.stockKey).update({qty:Math.max(0,(s.qty||0)-it.qty),updatedAt:new Date().toISOString()});
   }
-  await logAudit('sales','BILL_GENERATED', billRef.key, { billNo, patient, total, items:posCart.length });
+  await logAudit('sales','BILL_GENERATED',ref.key,{billNo:bill.billNo,patient:bill.patient,total:bill.total});
   toast('Bill generated! Stock updated.','success');
-  // Show bill
-  showBillModal({ ...bill, key: billRef.key });
+  showBillModal({...bill,key:ref.key});
   posClearCart();
 }
 
-function posClearCart() {
-  posCart = [];
-  posRenderCart();
-  ['posPatient','posUhid','posDoctor','posNotes','posDiscount','posGst'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = id === 'posDiscount' || id === 'posGst' ? '0' : '';
-  });
-  if (document.getElementById('posPayMode')) document.getElementById('posPayMode').value = 'Cash';
+function posClearCart(){
+  posCart=[];posRenderCart();
+  ['posPatient','posUhid','posDoctor','posNotes'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const pd=document.getElementById('posDiscount');if(pd)pd.value='0';
+  const pg=document.getElementById('posGst');if(pg)pg.value='0';
+  const pm=document.getElementById('posPayMode');if(pm)pm.value='Cash';
 }
 
-// ============================================================
-// BILL PRINT
-// ============================================================
-function showBillModal(bill) {
-  const items = bill.items || [];
-  const area = document.getElementById('billPrintArea');
-  const hospName = document.getElementById('setHospName')?.value || 'Chandrawati Hospital';
-  const hospAddr = document.getElementById('setHospAddr')?.value || 'GT Road, Barwadda, Dhanbad';
-  const license  = document.getElementById('setLicense')?.value  || '';
-  area.innerHTML = `
-    <style>@media print { .no-print{display:none!important} .modal-overlay{position:static!important} body>*:not(#modalBill){display:none!important} }</style>
-    <div style="text-align:center;border-bottom:2px solid #1e293b;padding-bottom:12px;margin-bottom:16px">
-      <div style="font-size:20px;font-weight:800;color:#1e293b">✚ ${hospName}</div>
-      <div style="font-size:12px;color:#64748b">${hospAddr}</div>
-      ${license ? `<div style="font-size:11px;color:#64748b">Drug License: ${license}</div>` : ''}
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:14px;font-size:12px">
-      <div>
-        <div><b>Bill No:</b> ${bill.billNo}</div>
-        <div><b>Date:</b> ${new Date(bill.createdAt).toLocaleString('en-IN')}</div>
-        <div><b>Payment:</b> ${bill.paymentMode}</div>
-      </div>
-      <div style="text-align:right">
-        <div><b>Patient:</b> ${bill.patient}</div>
-        ${bill.uhid ? `<div><b>UHID:</b> ${bill.uhid}</div>` : ''}
-        ${bill.doctor ? `<div><b>Doctor:</b> ${bill.doctor}</div>` : ''}
-      </div>
-    </div>
-    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px">
-      <thead><tr style="background:#f1f5f9">
-        <th style="padding:8px;text-align:left;border:1px solid #e2e8f0">#</th>
-        <th style="padding:8px;text-align:left;border:1px solid #e2e8f0">Drug</th>
-        <th style="padding:8px;text-align:center;border:1px solid #e2e8f0">Batch</th>
-        <th style="padding:8px;text-align:center;border:1px solid #e2e8f0">Expiry</th>
-        <th style="padding:8px;text-align:center;border:1px solid #e2e8f0">Qty</th>
-        <th style="padding:8px;text-align:right;border:1px solid #e2e8f0">MRP</th>
-        <th style="padding:8px;text-align:right;border:1px solid #e2e8f0">Amount</th>
-      </tr></thead>
-      <tbody>${items.map((item,i) => `<tr>
-        <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:center">${i+1}</td>
-        <td style="padding:7px 8px;border:1px solid #e2e8f0"><b>${item.drugName}</b>${item.brand?'<br><small style="color:#64748b">'+item.brand+'</small>':''}</td>
-        <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:center;font-family:monospace">${item.batch||'—'}</td>
-        <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:center">${item.expiry||'—'}</td>
-        <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:center">${item.qty} ${item.unit||''}</td>
-        <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right">₹${parseFloat(item.mrp).toFixed(2)}</td>
-        <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;font-weight:600">₹${parseFloat(item.amount).toFixed(2)}</td>
-      </tr>`).join('')}</tbody>
-    </table>
-    <div style="display:flex;justify-content:flex-end">
-      <div style="min-width:240px;font-size:13px">
-        <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e2e8f0"><span>Subtotal</span><span>₹${bill.subtotal.toFixed(2)}</span></div>
-        ${bill.discountAmt>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;color:#dc2626;border-bottom:1px solid #e2e8f0"><span>Discount (${bill.discountPct}%)</span><span>-₹${bill.discountAmt.toFixed(2)}</span></div>`:''}
-        ${bill.gstAmt>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e2e8f0"><span>GST (${bill.gstPct}%)</span><span>₹${bill.gstAmt.toFixed(2)}</span></div>`:''}
-        <div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:800;font-size:16px;border-top:2px solid #1e293b"><span>TOTAL</span><span>₹${bill.total.toFixed(2)}</span></div>
-      </div>
-    </div>
-    ${bill.notes?`<div style="margin-top:10px;font-size:12px;color:#64748b"><b>Notes:</b> ${bill.notes}</div>`:''}
-    <div style="margin-top:20px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px">
-      Sold by: ${bill.soldByName||bill.soldBy} · ${hospName} · Thank you!
-    </div>`;
+function showBillModal(bill){
+  const area=document.getElementById('billPrintArea');
+  const hosp=document.getElementById('setHospName')?.value||'Chandrawati Hospital';
+  const addr=document.getElementById('setHospAddr')?.value||'GT Road, Barwadda, Dhanbad';
+  area.innerHTML=`<div style="text-align:center;border-bottom:2px solid #1e293b;padding-bottom:10px;margin-bottom:14px">
+    <div style="font-size:20px;font-weight:800;color:#1e293b">✚ ${hosp}</div>
+    <div style="font-size:12px;color:#64748b">${addr}</div>
+  </div>
+  <div style="display:flex;justify-content:space-between;margin-bottom:14px;font-size:12px">
+    <div><div><b>Bill No:</b> ${bill.billNo}</div><div><b>Date:</b> ${new Date(bill.createdAt).toLocaleString('en-IN')}</div><div><b>Payment:</b> ${bill.paymentMode}</div></div>
+    <div style="text-align:right"><div><b>Patient:</b> ${bill.patient}</div>${bill.uhid?'<div><b>UHID:</b> '+bill.uhid+'</div>':''}${bill.doctor?'<div><b>Doctor:</b> '+bill.doctor+'</div>':''}</div>
+  </div>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px">
+    <thead><tr style="background:#f1f5f9">${['#','Drug','Batch','Exp','Qty','MRP','Amount'].map(h=>'<th style="padding:7px;border:1px solid #e2e8f0;text-align:'+(h==='Amount'||h==='MRP'?'right':'left')+'">'+h+'</th>').join('')}</tr></thead>
+    <tbody>${(bill.items||[]).map((it,i)=>`<tr><td style="padding:6px 8px;border:1px solid #e2e8f0">${i+1}</td><td style="padding:6px 8px;border:1px solid #e2e8f0"><b>${it.drugName}</b></td><td style="padding:6px 8px;border:1px solid #e2e8f0;font-family:monospace">${it.batch||'—'}</td><td style="padding:6px 8px;border:1px solid #e2e8f0">${it.expiry||'—'}</td><td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center">${it.qty}</td><td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:right">₹${parseFloat(it.mrp).toFixed(2)}</td><td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:right;font-weight:600">₹${parseFloat(it.amount).toFixed(2)}</td></tr>`).join('')}</tbody>
+  </table>
+  <div style="display:flex;justify-content:flex-end"><div style="min-width:220px;font-size:13px">
+    <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e2e8f0"><span>Subtotal</span><span>₹${bill.subtotal.toFixed(2)}</span></div>
+    ${bill.discountAmt>0?'<div style="display:flex;justify-content:space-between;padding:4px 0;color:#dc2626;border-bottom:1px solid #e2e8f0"><span>Discount ('+bill.discountPct+'%)</span><span>-₹'+bill.discountAmt.toFixed(2)+'</span></div>':''}
+    ${bill.gstAmt>0?'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e2e8f0"><span>GST ('+bill.gstPct+'%)</span><span>₹'+bill.gstAmt.toFixed(2)+'</span></div>':''}
+    <div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:800;font-size:16px;border-top:2px solid #1e293b"><span>TOTAL</span><span>₹${bill.total.toFixed(2)}</span></div>
+  </div></div>
+  <div style="margin-top:16px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:10px">Sold by: ${bill.soldByName||bill.soldBy} · ${hosp} · Thank you!</div>`;
   openModal('modalBill');
 }
 
-function printBill() { window.print(); }
-
-// ============================================================
+// ═══════════════════════════════════════════════════════════════
 // SALES REGISTER
-// ============================================================
-function renderSales() {
-  const tb = document.getElementById('salesTbody');
-  if (!tb) return;
-  let sales = [...allSales].sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt));
-  // Date filter
-  const from = document.getElementById('salesDateFrom')?.value;
-  const to   = document.getElementById('salesDateTo')?.value;
-  if (from) sales = sales.filter(s => s.createdAt >= from);
-  if (to)   sales = sales.filter(s => s.createdAt <= to+'T23:59:59');
-  // Summary bar
-  const summaryBar = document.getElementById('salesSummaryBar');
-  if (summaryBar) {
-    const total   = sales.reduce((s,b) => s + (b.total||0), 0);
-    const count   = sales.length;
-    const today   = sales.filter(s => new Date(s.createdAt).toDateString() === new Date().toDateString());
-    const todayAmt = today.reduce((s,b) => s + (b.total||0), 0);
-    summaryBar.innerHTML = `
-      <div class="stat-card stat-teal"><div class="stat-icon">🧾</div><div class="stat-info"><p>${count}</p><span>Total Bills</span></div></div>
-      <div class="stat-card stat-green"><div class="stat-icon">₹</div><div class="stat-info"><p>₹${total.toFixed(0)}</p><span>Total Revenue</span></div></div>
-      <div class="stat-card stat-blue"><div class="stat-icon">📅</div><div class="stat-info"><p>${today.length}</p><span>Today's Bills</span></div></div>
-      <div class="stat-card stat-purple"><div class="stat-icon">₹</div><div class="stat-info"><p>₹${todayAmt.toFixed(0)}</p><span>Today's Revenue</span></div></div>`;
-  }
-  if (!sales.length) { tb.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:24px">No sales found</td></tr>'; return; }
-  const isAdmin = currentUserData?.role === 'admin';
-  tb.innerHTML = sales.map(s => `<tr>
+// ═══════════════════════════════════════════════════════════════
+function renderSales(){
+  const tb=document.getElementById('salesTbody');
+  const st=document.getElementById('salesStats');
+  if(!tb)return;
+  let data=[...allSales].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  const from=document.getElementById('salesFrom')?.value;
+  const to  =document.getElementById('salesTo')?.value;
+  if(from) data=data.filter(s=>s.createdAt>=from);
+  if(to)   data=data.filter(s=>s.createdAt<=to+'T23:59:59');
+  const total=data.reduce((s,b)=>s+(b.total||0),0);
+  const today=data.filter(s=>new Date(s.createdAt).toDateString()===new Date().toDateString());
+  if(st) st.innerHTML=`
+    <div class="stat-card stat-teal"><div class="stat-icon">🧾</div><div class="stat-info"><p>${data.length}</p><span>Total Bills</span></div></div>
+    <div class="stat-card stat-green"><div class="stat-icon">₹</div><div class="stat-info"><p>₹${total.toFixed(0)}</p><span>Revenue</span></div></div>
+    <div class="stat-card stat-blue"><div class="stat-icon">📅</div><div class="stat-info"><p>${today.length}</p><span>Today Bills</span></div></div>
+    <div class="stat-card stat-purple"><div class="stat-icon">₹</div><div class="stat-info"><p>₹${today.reduce((s,b)=>s+(b.total||0),0).toFixed(0)}</p><span>Today Revenue</span></div></div>`;
+  if(!data.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:24px">No sales records</td></tr>';return;}
+  tb.innerHTML=data.map(s=>`<tr>
     <td style="font-family:var(--mono);font-size:11px">${s.billNo}</td>
     <td style="font-size:11px">${new Date(s.createdAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
-    <td><b>${s.patient}</b></td>
-    <td style="font-size:11px">${s.uhid||'—'}</td>
-    <td>${(s.items||[]).length} item(s)</td>
-    <td style="font-family:var(--mono)">₹${(s.subtotal||0).toFixed(2)}</td>
-    <td style="font-family:var(--mono);color:var(--red)">${s.discountAmt>0?'-₹'+s.discountAmt.toFixed(2):'—'}</td>
-    <td style="font-family:var(--mono)">${s.gstAmt>0?'₹'+s.gstAmt.toFixed(2):'—'}</td>
+    <td><b>${s.patient}</b></td><td style="font-size:11px">${s.uhid||'—'}</td>
+    <td>${(s.items||[]).length}</td>
     <td style="font-family:var(--mono);font-weight:700;color:var(--teal)">₹${(s.total||0).toFixed(2)}</td>
     <td><span class="badge badge-teal">${s.paymentMode||'—'}</span></td>
     <td style="font-size:11px">${s.soldBy||'—'}</td>
-    <td><button class="btn btn-outline btn-sm" onclick="showBillModal(allSales.find(x=>x.key==='${s.key}'))">🖨️ Print</button></td>
+    <td><button class="btn btn-outline btn-sm" onclick='showBillModal(allSales.find(x=>x.key==="${s.key}"))'>🖨️</button></td>
   </tr>`).join('');
 }
 
-function exportSalesCSV() {
-  const rows = [['Bill No','Date','Patient','UHID','Items','Subtotal','Discount','GST','Total','Payment','Sold By']];
-  allSales.forEach(s => rows.push([s.billNo, new Date(s.createdAt).toLocaleString('en-IN'), s.patient, s.uhid||'', (s.items||[]).length, s.subtotal, s.discountAmt||0, s.gstAmt||0, s.total, s.paymentMode, s.soldBy]));
-  downloadCSV(rows, 'sales-register.csv');
+function exportSalesCSV(){
+  const rows=[['Bill No','Date','Patient','UHID','Items','Subtotal','Discount','GST','Total','Payment','By']];
+  allSales.forEach(s=>rows.push([s.billNo,new Date(s.createdAt).toLocaleString('en-IN'),s.patient,s.uhid||'',(s.items||[]).length,s.subtotal,s.discountAmt||0,s.gstAmt||0,s.total,s.paymentMode,s.soldBy]));
+  const csv=rows.map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join(String.fromCharCode(10));
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='sales.csv';a.click();
 }
-
-function downloadCSV(rows, filename) {
-  const csv = rows.map(r => r.map(c => '"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');
-  const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download = filename; a.click();
-}
-
-// ── RBAC on drug master edit buttons ──
-function isDrugMasterEditable() { return currentUserData?.role === 'admin'; }
 
 </script>
 </body>
