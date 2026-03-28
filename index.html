@@ -1116,14 +1116,16 @@ tr:last-child td { border-bottom: none; }
 // FIREBASE SYNC ENGINE — no hardcoded credentials (same pattern as HIS)
 // Config stored in localStorage or passed via URL hash share link
 // ============================================================
-let db = null;
-const FB_CFG_KEY = 'pharma_fb_config_v1';
+let fbApp = null, fbDb = null, fbConnected = false;
+let fbWriteTimer = null;
+const FB_CFG_KEY  = 'pharma_fb_config_v1';
+const FB_DATA_PATH = 'pharma_inventory';
 
-// BAKED-IN CONFIG — always null in source code. Keys never committed to git.
-// To auto-connect all devices: Settings → Copy Share Link → open on device.
+// ── BAKED-IN CONFIG — always null in source (no keys in git) ─────────────────
 const FIREBASE_BAKED_CONFIG = null;
+// ─────────────────────────────────────────────────────────────────────────────
 
-function getStoredConfig() {
+function fbGetConfig() {
   if (FIREBASE_BAKED_CONFIG && FIREBASE_BAKED_CONFIG.apiKey) return FIREBASE_BAKED_CONFIG;
   try {
     const local = JSON.parse(localStorage.getItem(FB_CFG_KEY) || 'null');
@@ -1132,7 +1134,10 @@ function getStoredConfig() {
   return null;
 }
 
-// URL hash bootstrap: Admin shares URL#cfg=base64 → device auto-saves & connects
+// Alias for legacy callers
+function getStoredConfig() { return fbGetConfig(); }
+
+// ── URL-HASH CONFIG BOOTSTRAP (identical to HIS) ─────────────────────────────
 function fbCheckUrlHash() {
   try {
     const hash = window.location.hash;
@@ -1146,59 +1151,114 @@ function fbCheckUrlHash() {
   } catch(e) { return null; }
 }
 
-function initFirebase(cfg) {
-  if (!cfg || !cfg.apiKey || !cfg.databaseURL) return false;
+function fbCopyShareLink() {
+  const cfg = fbGetConfig();
+  if (!cfg || !cfg.apiKey) { toast('Save Firebase config first','warn'); return; }
+  const encoded  = btoa(JSON.stringify(cfg));
+  const shareUrl = window.location.href.split('#')[0] + '#cfg=' + encoded;
+  const box  = document.getElementById('shareLinkBox');
+  const note = document.getElementById('fbShareNote');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(shareUrl)
+      .then(() => {
+        toast('✅ Link copied — open on any device to auto-connect','success');
+        if (box)  { box.style.display = 'block'; box.textContent = shareUrl; }
+        if (note) note.style.display = 'block';
+      })
+      .catch(() => { prompt('Copy and open on any device:', shareUrl); });
+  } else {
+    prompt('Copy and open on any device:', shareUrl);
+    if (box) { box.style.display = 'block'; box.textContent = shareUrl; }
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fbSetStatus(icon, text, color) {
+  const badge = document.getElementById('syncBadge');
+  const box   = document.getElementById('fbStatusText');
+  if (badge) {
+    badge.textContent   = icon + ' ' + text;
+    badge.style.color   = color || 'var(--text3)';
+    badge.style.border  = '1px solid ' + (color || 'var(--border)');
+    badge.style.background = color ? color + '22' : 'var(--surface2)';
+  }
+  if (box) box.textContent = icon + ' ' + text;
+}
+
+// Alias used by legacy badge calls
+function setSyncBadge(state) {
+  const map = {
+    connected:    ['🟢','Synced','#56d364'],
+    disconnected: ['🔴','Disconnected','#f85149'],
+    connecting:   ['🟡','Connecting…','#e3b341'],
+    error:        ['❌','Config Error','#f85149'],
+    local:        ['⚪','Local Only','var(--text3)'],
+  };
+  const [icon, text, color] = map[state] || map.local;
+  fbSetStatus(icon, text, color);
+}
+
+function fbInit(cfg) {
   try {
-    if (firebase.apps.length === 0) { firebase.initializeApp(cfg); }
-    db = firebase.app().database();
-    db.ref('.info/connected').on('value', snap => {
-      const v = snap.val();
-      if (v === true)       setSyncBadge('connected');
-      else if (v === false) setSyncBadge('disconnected');
+    // Delete old app if exists — allows re-init without errors (HIS pattern)
+    if (fbApp) { try { fbApp.delete(); } catch(e) {} fbApp = null; fbDb = null; fbConnected = false; }
+    fbApp = firebase.initializeApp(cfg, 'pharma_' + Date.now());
+    fbDb  = firebase.database(fbApp);
+    // Connectivity monitor
+    fbDb.ref('.info/connected').on('value', snap => {
+      fbConnected = snap.val() === true;
+      fbSetStatus(
+        fbConnected ? '🟢' : '🟠',
+        fbConnected ? 'Synced' : 'Offline (local)',
+        fbConnected ? '#56d364' : '#e3b341'
+      );
+      if (fbConnected) loadAllData();
     });
     setSyncBadge('connecting');
     return true;
-  } catch(e) { console.error('Firebase init error:', e); setSyncBadge('error'); return false; }
+  } catch(e) {
+    console.error('Firebase init error:', e);
+    fbSetStatus('❌', 'Error: ' + e.message, '#f85149');
+    return false;
+  }
 }
 
-function setSyncBadge(state) {
-  const el = document.getElementById('syncBadge');
-  if (!el) return;
-  const states = {
-    connected:    { text: '🟢 Synced',         bg: 'rgba(86,211,100,0.15)', border: '#56d364', color: '#56d364' },
-    disconnected: { text: '🔴 Disconnected',   bg: 'rgba(248,81,73,0.15)',  border: '#f85149', color: '#f85149' },
-    connecting:   { text: '🟡 Connecting…',    bg: 'rgba(227,179,65,0.15)', border: '#e3b341', color: '#e3b341' },
-    error:        { text: '❌ Config Error',   bg: 'rgba(248,81,73,0.15)',  border: '#f85149', color: '#f85149' },
-    local:        { text: '⚪ Local Only',      bg: 'var(--surface2)',       border: 'var(--border)', color: 'var(--text3)' }
-  };
-  const s = states[state] || states.local;
-  el.textContent = s.text;
-  el.style.background = s.bg;
-  el.style.border = '1px solid ' + s.border;
-  el.style.color = s.color;
+// ── SAVE — localStorage first + debounced Firebase (HIS pattern) ─────────────
+function saveAllData() {
+  if (fbDb && fbConnected) {
+    clearTimeout(fbWriteTimer);
+    fbSetStatus('🔄','Saving...','#58a6ff');
+    fbWriteTimer = setTimeout(() => {
+      const payload = {
+        drugs: allDrugs, items: allItems, vendors: allVendors,
+        stock: allStock, purchase_orders: allPOs, grns: allGRNs,
+        indents: allIndents, dispenses: allDispenses, narcotic: allNarc,
+        returns: allReturns, rate_contracts: allRates,
+      };
+      fbDb.ref(FB_DATA_PATH).set(payload)
+        .then(() => fbSetStatus('🟢','Synced','#56d364'))
+        .catch(e  => fbSetStatus('❌','Save failed','#f85149'));
+    }, 600);
+  }
 }
 
-// Default accounts stored in localStorage — no DB needed for auth
+// Default accounts
 const ACCOUNTS_KEY = 'pharma_accounts';
 const SESSION_KEY  = 'pharma_session';
 
 function getAccounts() {
   try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || 'null'); } catch(e) { return null; }
 }
-
 function saveAccounts(accounts) {
   localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
 }
-
 function initDefaultAccounts() {
-  if (getAccounts()) return; // already seeded
-  const defaults = [
+  if (getAccounts()) return;
+  saveAccounts([
     { username:'admin',   password:'Admin@1234',   name:'Administrator',  role:'admin',    dept:'Administration', protected:true  },
     { username:'billing', password:'Billing@1234', name:'Billing Account', role:'accounts', dept:'Billing',       protected:false }
-  ];
-  saveAccounts(defaults);
+  ]);
 }
-
 // ============================================================
 // STATE
 // ============================================================
@@ -1228,9 +1288,17 @@ let editingDrugKey = null;
 
 window.addEventListener('DOMContentLoaded', () => {
   initDefaultAccounts();
+  // Check URL hash for shared config (HIS pattern)
   const hashCfg = fbCheckUrlHash();
-  if (hashCfg) { initFirebase(hashCfg); }
-  else { const cfg = getStoredConfig(); if (cfg) initFirebase(cfg); else setSyncBadge('local'); }
+  // Connect Firebase — hash config (new device) or localStorage config (returning device)
+  const cfg = hashCfg || fbGetConfig();
+  if (cfg && cfg.apiKey && cfg.databaseURL) {
+    fbSetStatus('🟡','Connecting...','#e3b341');
+    setTimeout(() => fbInit(cfg), 50);
+  } else {
+    setSyncBadge('local');
+  }
+  // Always show login — no auto-bypass
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('loginUsername').focus();
@@ -1283,141 +1351,55 @@ function initApp() {
   setInterval(() => {
     document.getElementById('topbarDate').textContent = new Date().toLocaleString('en-IN');
   }, 1000);
-  loadAllData();
+  if (fbDb && fbConnected) { loadAllData(); }
   loadDashboard();
   buildReportButtons();
 }
 
 function loadAllData() {
-  if (!db) { console.warn('Firebase not configured — data not loaded'); return; }
-  db.ref('drugs').on('value', snap => {
-    allDrugs = [];
-    snap.forEach(c => allDrugs.push({key: c.key, ...c.val()}));
-    renderDrugs(); renderStock(); renderLASA(); updatePendingBadge();
+  if (!fbDb) { console.warn('Firebase not connected'); return; }
+  fbDb.ref(FB_DATA_PATH + '/drugs').on('value', snap => {
+    allDrugs = []; if(snap.val()) snap.forEach(c => allDrugs.push({key: c.key, ...c.val()}));
   });
-  db.ref('items').on('value', snap => {
-    allItems = []; snap.forEach(c => allItems.push({key: c.key, ...c.val()})); renderItems();
+  fbDb.ref(FB_DATA_PATH + '/items').on('value', snap => {
+    allItems = []; if(snap.val()) snap.forEach(c => allItems.push({key: c.key, ...c.val()})); renderItems();
   });
-  db.ref('vendors').on('value', snap => {
-    allVendors = []; snap.forEach(c => allVendors.push({key: c.key, ...c.val()}));
-    renderVendors(); populateVendorDrops();
+  fbDb.ref(FB_DATA_PATH + '/vendors').on('value', snap => {
+    allVendors = []; if(snap.val()) snap.forEach(c => allVendors.push({key: c.key, ...c.val()}));
   });
-  db.ref('stock').on('value', snap => {
-    allStock = []; snap.forEach(c => allStock.push({key: c.key, ...c.val()}));
-    renderStock(); renderExpiry(); loadDashboard();
+  fbDb.ref(FB_DATA_PATH + '/stock').on('value', snap => {
+    allStock = []; if(snap.val()) snap.forEach(c => allStock.push({key: c.key, ...c.val()}));
+    renderStock(); updateDashboardStats();
   });
-  db.ref('purchase_orders').on('value', snap => {
-    allPOs = []; snap.forEach(c => allPOs.push({key: c.key, ...c.val()})); renderPOs();
+  fbDb.ref(FB_DATA_PATH + '/purchase_orders').on('value', snap => {
+    allPOs = []; if(snap.val()) snap.forEach(c => allPOs.push({key: c.key, ...c.val()})); renderPOs();
   });
-  db.ref('grns').on('value', snap => {
-    allGRNs = []; snap.forEach(c => allGRNs.push({key: c.key, ...c.val()})); renderGRNs();
+  fbDb.ref(FB_DATA_PATH + '/grns').on('value', snap => {
+    allGRNs = []; if(snap.val()) snap.forEach(c => allGRNs.push({key: c.key, ...c.val()})); renderGRNs();
   });
-  db.ref('indents').on('value', snap => {
-    allIndents = []; snap.forEach(c => allIndents.push({key: c.key, ...c.val()}));
-    renderIndents(); updatePendingBadge();
+  fbDb.ref(FB_DATA_PATH + '/indents').on('value', snap => {
+    allIndents = []; if(snap.val()) snap.forEach(c => allIndents.push({key: c.key, ...c.val()}));
+    renderIndents();
   });
-  db.ref('dispenses').on('value', snap => {
-    allDispenses = []; snap.forEach(c => allDispenses.push({key: c.key, ...c.val()})); renderDispenses();
+  fbDb.ref(FB_DATA_PATH + '/dispenses').on('value', snap => {
+    allDispenses = []; if(snap.val()) snap.forEach(c => allDispenses.push({key: c.key, ...c.val()})); renderDispenses();
   });
-  db.ref('narcotic').on('value', snap => {
-    allNarc = []; snap.forEach(c => allNarc.push({key: c.key, ...c.val()})); renderNarcotic();
+  fbDb.ref(FB_DATA_PATH + '/narcotic').on('value', snap => {
+    allNarc = []; if(snap.val()) snap.forEach(c => allNarc.push({key: c.key, ...c.val()})); renderNarcotic();
   });
-  db.ref('audit_log').limitToLast(500).on('value', snap => {
-    allAudit = []; snap.forEach(c => allAudit.push({key: c.key, ...c.val()}));
-    allAudit.reverse(); renderAudit();
+  fbDb.ref(FB_DATA_PATH + '/audit_log').limitToLast(500).on('value', snap => {
+    allAudit = []; if(snap.val()) snap.forEach(c => allAudit.push({key: c.key, ...c.val()}));
   });
-  db.ref('returns').on('value', snap => {
-    allReturns = []; snap.forEach(c => allReturns.push({key: c.key, ...c.val()})); renderReturns();
+  fbDb.ref(FB_DATA_PATH + '/returns').on('value', snap => {
+    allReturns = []; if(snap.val()) snap.forEach(c => allReturns.push({key: c.key, ...c.val()})); renderReturns();
   });
-  db.ref('rate_contracts').on('value', snap => {
-    allRates = []; snap.forEach(c => allRates.push({key: c.key, ...c.val()})); renderRates();
+  fbDb.ref(FB_DATA_PATH + '/rate_contracts').on('value', snap => {
+    allRates = []; if(snap.val()) snap.forEach(c => allRates.push({key: c.key, ...c.val()})); renderRates();
   });
-  // Users come from localStorage — refresh on navigate
-  refreshUsersPanel();
 }
 
-// ============================================================
-// AUDIT TRAIL
-// ============================================================
-async function logAudit(module, action, recordId, details) {
-  if (!db || !currentUser) return; // skip if Firebase not configured or not logged in
-  try {
-    const entry = {
-      ts: new Date().toISOString(),
-      uid: currentUser.uid,
-      userName: currentUserData ? (currentUserData.name || currentUserData.username || 'unknown') : 'unknown',
-      role: currentUserData ? (currentUserData.role || '') : '',
-      module, action,
-      recordId: String(recordId || ''),
-      details: typeof details === 'object' ? JSON.stringify(details) : String(details || '')
-    };
-    await db.ref('audit_log').push(entry);
-  } catch(e) { console.warn('Audit log failed:', e.message); }
-}
-
-// ============================================================
-// NAVIGATION
-// ============================================================
-const moduleTitles = {
-  dashboard:'Dashboard', drugmaster:'Drug Master', itemmaster:'Item Master', stock:'Stock Ledger',
-  vendors:'Vendor Master', purchase:'Purchase Orders', grn:'GRN', indents:'Indent Management',
-  dispensing:'Drug Dispensing', returns:'Drug Returns', expiry:'Expiry Alerts', narcotic:'Narcotic Register',
-  lasa:'LASA & High-Risk', reports:'Reports', audit:'Audit Trail', users:'User Management', settings:'Settings'
-};
-
-function navigate(module) {
-  document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  const el = document.getElementById('mod-' + module);
-  if (el) el.classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n => {
-    if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'" + module + "'")) n.classList.add('active');
-  });
-  document.getElementById('topbarTitle').textContent = moduleTitles[module] || module;
-  if (module === 'settings') loadFbConfigFields();
-  if (module === 'users') refreshUsersPanel();
-}
-
-function switchTab(moduleKey, tabKey) {
-  const prefix = moduleKey === 'purchase' ? 'ptab' : moduleKey === 'indent' ? 'itab' : moduleKey;
-  document.querySelectorAll(`[id^="${prefix}-"]`).forEach(p => p.classList.remove('active'));
-  const panel = document.getElementById(`${prefix}-${tabKey}`);
-  if (panel) panel.classList.add('active');
-  event.target.closest('.tab-bar').querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  if (moduleKey === 'indent') renderIndents(tabKey);
-}
-
-// ============================================================
-// TOAST
-// ============================================================
-function toast(msg, type='info') {
-  const t = document.getElementById('toast');
-  const el = document.createElement('div');
-  el.className = `toast-item toast-${type}`;
-  el.textContent = msg;
-  t.appendChild(el);
-  setTimeout(() => el.classList.add('show'), 10);
-  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); }, 3500);
-}
-
-// ============================================================
-// MODAL HELPERS
-// ============================================================
-function openModal(id) {
-  document.getElementById(id).classList.remove('hidden');
-  if (id === 'modalPO') { initPOForm(); }
-  if (id === 'modalGRN') { initGRNForm(); }
-  if (id === 'modalIndent') { initIndentForm(); }
-  if (id === 'modalDispense') { initDispForm(); }
-}
-function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-
-// ============================================================
-// DASHBOARD
-// ============================================================
 function loadDashboard() {
-  if (!db) { 
+  if (!fbDb || !fbConnected) { 
     document.getElementById('dashStats').innerHTML = `
       <div class="alert-box warn" style="grid-column:1/-1">
         <div style="font-size:14px;font-weight:700;margin-bottom:8px">🔄 Connecting to Firebase…</div>
@@ -1544,11 +1526,11 @@ async function saveDrug() {
   };
   if (!d.generic) { toast('Generic name required', 'error'); return; }
   if (editingDrugKey) {
-    await db.ref('drugs/' + editingDrugKey).update(d);
+    await fbDb.ref(FB_DATA_PATH + '/drugs/' + editingDrugKey).update(d);
     await logAudit('drug_master', 'EDIT', editingDrugKey, d);
     toast('Drug updated', 'success');
   } else {
-    const ref = await db.ref('drugs').push(d);
+    const ref = await fbDb.ref(FB_DATA_PATH + '/drugs').push(d);
     await logAudit('drug_master', 'CREATE', ref.key, d);
     toast('Drug added', 'success');
   }
@@ -1583,7 +1565,7 @@ function editDrug(key) {
 
 async function deleteDrug(key) {
   if (!confirm('Delete this drug from master?')) return;
-  await db.ref('drugs/' + key).remove();
+  await fbDb.ref(FB_DATA_PATH + '/drugs/' + key).remove();
   await logAudit('drug_master', 'DELETE', key, '');
   toast('Drug deleted', 'warn');
 }
@@ -1636,14 +1618,14 @@ async function saveItem() {
     createdBy: currentUser.uid, createdAt: new Date().toISOString()
   };
   if (!d.name) { toast('Item name required', 'error'); return; }
-  const ref = await db.ref('items').push(d);
+  const ref = await fbDb.ref(FB_DATA_PATH + '/items').push(d);
   await logAudit('item_master', 'CREATE', ref.key, d);
   toast('Item added', 'success'); closeModal('modalItem');
 }
 
 async function deleteItem(key) {
   if (!confirm('Delete this item?')) return;
-  await db.ref('items/' + key).remove();
+  await fbDb.ref(FB_DATA_PATH + '/items/' + key).remove();
   await logAudit('item_master', 'DELETE', key, '');
   toast('Item deleted', 'warn');
 }
@@ -1685,14 +1667,14 @@ async function saveVendor() {
     createdBy: currentUser.uid, createdAt: new Date().toISOString()
   };
   if (!d.name) { toast('Vendor name required', 'error'); return; }
-  const ref = await db.ref('vendors').push(d);
+  const ref = await fbDb.ref(FB_DATA_PATH + '/vendors').push(d);
   await logAudit('vendors', 'CREATE', ref.key, d);
   toast('Vendor added', 'success'); closeModal('modalVendor');
 }
 
 async function deleteVendor(key) {
   if (!confirm('Delete vendor?')) return;
-  await db.ref('vendors/' + key).remove();
+  await fbDb.ref(FB_DATA_PATH + '/vendors/' + key).remove();
 }
 
 // ============================================================
@@ -1741,7 +1723,7 @@ async function savePO() {
     createdBy: currentUser.uid, createdByName: currentUserData.name,
     createdAt: new Date().toISOString()
   };
-  const ref = await db.ref('purchase_orders').push(d);
+  const ref = await fbDb.ref(FB_DATA_PATH + '/purchase_orders').push(d);
   await logAudit('purchase_orders', 'CREATE', ref.key, {poNo: d.poNo});
   toast('Purchase Order submitted: ' + d.poNo, 'success');
   closeModal('modalPO');
@@ -1765,7 +1747,7 @@ function renderPOs() {
 }
 
 async function approvePO(key) {
-  await db.ref('purchase_orders/' + key).update({ status: 'Approved', approvedBy: currentUserData.name, approvedAt: new Date().toISOString() });
+  await fbDb.ref(FB_DATA_PATH + '/purchase_orders/' + key).update({ status: 'Approved', approvedBy: currentUserData.name, approvedAt: new Date().toISOString() });
   await logAudit('purchase_orders', 'APPROVE', key, '');
   toast('PO Approved', 'success');
 }
@@ -1829,10 +1811,10 @@ async function saveGRN() {
     receivedBy: currentUserData.name,
     createdAt: new Date().toISOString(), status: 'Completed'
   };
-  const ref = await db.ref('grns').push(grnData);
+  const ref = await fbDb.ref(FB_DATA_PATH + '/grns').push(grnData);
   // Update stock
   for (const item of items) {
-    const stockRef = db.ref('stock').push();
+    const stockRef = fbDb.ref(FB_DATA_PATH + '/stock').push();
     await stockRef.set({
       drugName: item.drug,
       batch: item.batch,
@@ -1922,9 +1904,9 @@ async function saveStockAdj() {
     let newQty = match.qty;
     if (type.includes('Add')) newQty += qty;
     else newQty = Math.max(0, newQty - qty);
-    await db.ref('stock/' + match.key).update({ qty: newQty, updatedAt: new Date().toISOString() });
+    await fbDb.ref(FB_DATA_PATH + '/stock/' + match.key).update({ qty: newQty, updatedAt: new Date().toISOString() });
   }
-  await db.ref('stock_adjustments').push(entry);
+  await fbDb.ref(FB_DATA_PATH + '/stock_adjustments').push(entry);
   await logAudit('stock', 'ADJUSTMENT', drug, { type, qty, reason });
   toast('Stock adjustment saved', 'success'); closeModal('modalStockAdj');
 }
@@ -1971,7 +1953,7 @@ async function saveIndent() {
     requestedBy: currentUserData.name, requestedById: currentUser.uid,
     createdAt: new Date().toISOString()
   };
-  const ref = await db.ref('indents').push(d);
+  const ref = await fbDb.ref(FB_DATA_PATH + '/indents').push(d);
   await logAudit('indents', 'CREATE', ref.key, {indentNo: d.indentNo});
   toast('Indent submitted: ' + d.indentNo, 'success'); closeModal('modalIndent');
 }
@@ -1997,17 +1979,17 @@ function renderIndents(tab) {
 }
 
 async function approveIndent(key) {
-  await db.ref('indents/' + key).update({ status: 'Approved', approvedBy: currentUserData.name, approvedAt: new Date().toISOString() });
+  await fbDb.ref(FB_DATA_PATH + '/indents/' + key).update({ status: 'Approved', approvedBy: currentUserData.name, approvedAt: new Date().toISOString() });
   await logAudit('indents', 'APPROVE', key, '');
   toast('Indent approved', 'success');
 }
 async function rejectIndent(key) {
-  await db.ref('indents/' + key).update({ status: 'Rejected', rejectedBy: currentUserData.name });
+  await fbDb.ref(FB_DATA_PATH + '/indents/' + key).update({ status: 'Rejected', rejectedBy: currentUserData.name });
   await logAudit('indents', 'REJECT', key, '');
   toast('Indent rejected', 'warn');
 }
 async function issueIndent(key) {
-  await db.ref('indents/' + key).update({ status: 'Issued', issuedBy: currentUserData.name, issuedAt: new Date().toISOString() });
+  await fbDb.ref(FB_DATA_PATH + '/indents/' + key).update({ status: 'Issued', issuedBy: currentUserData.name, issuedAt: new Date().toISOString() });
   await logAudit('indents', 'ISSUE', key, '');
   toast('Indent marked as issued', 'success');
 }
@@ -2061,13 +2043,13 @@ async function saveDispensing() {
     items, dispensedBy: currentUserData.name,
     dispensedAt: new Date().toISOString(), status: 'Issued'
   };
-  const ref = await db.ref('dispenses').push(d);
+  const ref = await fbDb.ref(FB_DATA_PATH + '/dispenses').push(d);
   // Deduct stock
   for (const item of items) {
     const match = allStock.find(s => (s.drugName||'').toLowerCase().includes(item.drug.toLowerCase()) && (!item.batch || s.batch === item.batch));
     if (match) {
       const newQty = Math.max(0, (match.qty||0) - item.qty);
-      await db.ref('stock/' + match.key).update({ qty: newQty, updatedAt: new Date().toISOString() });
+      await fbDb.ref(FB_DATA_PATH + '/stock/' + match.key).update({ qty: newQty, updatedAt: new Date().toISOString() });
     }
   }
   await logAudit('dispensing', 'ISSUE', ref.key, {issueNo: d.issueNo, patient: d.patient});
@@ -2139,7 +2121,7 @@ function filterExpiryDays(val) { renderExpiry(val); }
 async function markExpiredAction(key) {
   const action = prompt('Action for this item:\n1. Quarantine\n2. Return to Vendor\n3. Destroy\n\nType action:');
   if (!action) return;
-  await db.ref('stock/' + key).update({ expiryAction: action, actionBy: currentUserData.name, actionAt: new Date().toISOString() });
+  await fbDb.ref(FB_DATA_PATH + '/stock/' + key).update({ expiryAction: action, actionBy: currentUserData.name, actionAt: new Date().toISOString() });
   await logAudit('stock', 'EXPIRY_ACTION', key, { action });
   toast('Action recorded', 'success');
 }
@@ -2166,7 +2148,7 @@ async function saveNarcotic() {
   const prev = allNarc.filter(n => n.drug === d.drug).pop();
   const prevBal = prev ? (prev.closingBal || 0) : 0;
   d.closingBal = prevBal + d.received - d.issued;
-  const ref = await db.ref('narcotic').push(d);
+  const ref = await fbDb.ref(FB_DATA_PATH + '/narcotic').push(d);
   await logAudit('narcotic', 'ENTRY', ref.key, { drug: d.drug, issued: d.issued, patient: d.patient, verifier: d.verifier });
   toast('Narcotic register entry saved', 'success'); closeModal('modalNarc');
 }
@@ -2222,10 +2204,10 @@ async function saveReturn() {
     action: document.getElementById('retAction').value,
     recordedBy: currentUserData.name, createdAt: new Date().toISOString()
   };
-  const ref = await db.ref('returns').push(d);
+  const ref = await fbDb.ref(FB_DATA_PATH + '/returns').push(d);
   if (d.action === 'Return to Stock') {
     const match = allStock.find(s => (s.drugName||'').toLowerCase().includes(d.drug.toLowerCase()));
-    if (match) await db.ref('stock/' + match.key).update({ qty: (match.qty||0) + d.qty, updatedAt: new Date().toISOString() });
+    if (match) await fbDb.ref(FB_DATA_PATH + '/stock/' + match.key).update({ qty: (match.qty||0) + d.qty, updatedAt: new Date().toISOString() });
   }
   await logAudit('returns', 'CREATE', ref.key, d);
   toast('Return recorded: ' + d.returnNo, 'success'); closeModal('modalReturn');
@@ -2256,7 +2238,7 @@ async function saveRateContract() {
     validTo: document.getElementById('rcTo').value,
     status: 'Active', createdAt: new Date().toISOString()
   };
-  await db.ref('rate_contracts').push(d);
+  await fbDb.ref(FB_DATA_PATH + '/rate_contracts').push(d);
   toast('Rate contract saved', 'success'); closeModal('modalRate');
 }
 
@@ -2515,7 +2497,7 @@ async function saveSettings() {
     expAlert: parseInt(document.getElementById('setExpAlert').value)||90,
     lowStockPct: parseInt(document.getElementById('setLowStock').value)||20
   };
-  await db.ref('settings').set(d);
+  await fbDb.ref(FB_DATA_PATH + '/settings').set(d);
   toast('Settings saved', 'success');
 }
 
@@ -2588,12 +2570,12 @@ window.seedDemoData = async function() {
   ];
   for (const d of drugs) {
     d.updatedBy = 'seed'; d.updatedAt = new Date().toISOString();
-    await db.ref('drugs').push(d);
+    await fbDb.ref(FB_DATA_PATH + '/drugs').push(d);
   }
   // Seed stock
-  await db.ref('stock').push({ drugName:'Amoxicillin 500mg Caps', batch:'AMX-2024-01', expiry:'2025-12-01', qty:350, unit:'Capsule', purchaseRate:3.5, mrp:5, store:'Pharmacy', reorderLevel:100, updatedAt:new Date().toISOString() });
-  await db.ref('stock').push({ drugName:'Morphine 10mg/ml Inj', batch:'MOR-2024-02', expiry:'2024-12-01', qty:8, unit:'Ampoule', purchaseRate:45, mrp:80, store:'ICU', reorderLevel:10, updatedAt:new Date().toISOString() });
-  await db.ref('stock').push({ drugName:'Dobutamine 250mg Vial', batch:'DOB-2024-03', expiry:'2025-06-01', qty:3, unit:'Vial', purchaseRate:180, mrp:250, store:'ICU', reorderLevel:5, updatedAt:new Date().toISOString() });
+  await fbDb.ref(FB_DATA_PATH + '/stock').push({ drugName:'Amoxicillin 500mg Caps', batch:'AMX-2024-01', expiry:'2025-12-01', qty:350, unit:'Capsule', purchaseRate:3.5, mrp:5, store:'Pharmacy', reorderLevel:100, updatedAt:new Date().toISOString() });
+  await fbDb.ref(FB_DATA_PATH + '/stock').push({ drugName:'Morphine 10mg/ml Inj', batch:'MOR-2024-02', expiry:'2024-12-01', qty:8, unit:'Ampoule', purchaseRate:45, mrp:80, store:'ICU', reorderLevel:10, updatedAt:new Date().toISOString() });
+  await fbDb.ref(FB_DATA_PATH + '/stock').push({ drugName:'Dobutamine 250mg Vial', batch:'DOB-2024-03', expiry:'2025-06-01', qty:3, unit:'Vial', purchaseRate:180, mrp:250, store:'ICU', reorderLevel:5, updatedAt:new Date().toISOString() });
   toast('Demo data seeded!', 'success');
 };
 
@@ -2667,14 +2649,14 @@ function fbSaveConfig() {
 
 async function fbTestConnection() {
   const resultEl = document.getElementById('fbTestResult');
-  if (!db) {
+  if (!fbDb) {
     if (resultEl) resultEl.textContent = '❌ Not connected';
     toast('Not connected','warn');
     return;
   }
   if (resultEl) resultEl.textContent = '🟡 Testing…';
   try {
-    const snap = await db.ref('.info/connected').get();
+    const snap = await fbDb.ref('.info/connected').get();
     const connected = snap.val() === true;
     if (resultEl) resultEl.textContent = connected ? '🟢 Connected and syncing' : '🔴 Offline (will sync when network returns)';
     toast(connected ? '✅ Firebase connected' : '⚠️ Currently offline','success');
@@ -2685,10 +2667,11 @@ async function fbTestConnection() {
 }
 
 function fbClearConfig() {
-  if (!confirm('Disconnect Firebase? Data will no longer sync.')) return;
+  if (!confirm('Disconnect Firebase? App will use local storage only.')) return;
   localStorage.removeItem(FB_CFG_KEY);
-  db = null;
-  setSyncBadge('local');
+  if (fbApp) { try { fbApp.delete(); } catch(e) {} }
+  fbApp = null; fbDb = null; fbConnected = false;
+  fbSetStatus('⚪','Local Only','var(--text3)');
   const box = document.getElementById('fbStatusBox');
   const txt = document.getElementById('fbStatusText');
   if (box) box.style.display = 'none';
