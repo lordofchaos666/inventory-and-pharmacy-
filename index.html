@@ -2797,29 +2797,7 @@ function fbClearConfig() {
   toast('Firebase disconnected','warn');
 }
 
-function fbCopyShareLink() {
-  const cfg = getStoredConfig();
-  if (!cfg) { toast('Configure Firebase first, then copy share link','warn'); return; }
-  const base = window.location.href.split('?')[0];
-  const params = new URLSearchParams();
-  if (cfg.apiKey)      params.set('apiKey', cfg.apiKey);
-  if (cfg.databaseURL) params.set('databaseURL', cfg.databaseURL);
-  if (cfg.authDomain)  params.set('authDomain', cfg.authDomain);
-  if (cfg.projectId)   params.set('projectId', cfg.projectId);
-  const shareUrl = base + '?' + params.toString();
-  navigator.clipboard.writeText(shareUrl).then(() => {
-    toast('✅ Share link copied! Send via WhatsApp/SMS — opening it auto-connects any device','success');
-    const box = document.getElementById('shareLinkBox');
-    if (box) { box.style.display = 'block'; box.textContent = shareUrl; }
-  }).catch(() => {
-    // Fallback for non-clipboard environments
-    const box = document.getElementById('shareLinkBox');
-    if (box) { box.style.display = 'block'; box.textContent = shareUrl; }
-    toast('Copy the link above manually','warn');
-  });
-}
 
-// Pre-fill Firebase config fields when navigating to settings
 function fbPopulateFields() {
   const cfg = fbGetConfig();
   const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
