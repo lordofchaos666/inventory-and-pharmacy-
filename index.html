@@ -754,8 +754,8 @@ tr:last-child td { border-bottom: none; }
             <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Firebase Console → Realtime Database → Rules → paste → Publish:</div>
             <pre style="background:#1e2a3a;color:#4db6ac;padding:14px;border-radius:6px;font-family:var(--mono);font-size:13px;overflow-x:auto">{
   "rules": {
-    ".read":  "auth != null",
-    ".write": "auth != null"
+    ".read": true,
+    ".write": true
   }
 }</pre>
             <div class="alert-box success" style="margin-top:10px">✅ Default credentials: <b>admin</b> / Admin@1234 &nbsp;·&nbsp; <b>billing</b> / Billing@1234</div>
@@ -1106,7 +1106,6 @@ tr:last-child td { border-bottom: none; }
 
 <!-- FIREBASE SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
@@ -1140,25 +1139,20 @@ function initFirebase(cfg) {
   try {
     if (firebase.apps.length === 0) { firebase.initializeApp(cfg); }
     db = firebase.app().database();
-    // Connection monitor fires immediately — no auth delay
+    // Real-time connection monitor — fires immediately
     db.ref('.info/connected').on('value', snap => {
       const v = snap.val();
       if (v === true)       setSyncBadge('connected');
       else if (v === false) setSyncBadge('disconnected');
-      // v === null means SDK still loading — stay on connecting
-    });
-    // Anonymous auth satisfies "auth != null" rules silently
-    firebase.auth().onAuthStateChanged(user => {
-      if (!user) {
-        firebase.auth().signInAnonymously().catch(err => {
-          console.error('Anonymous auth failed — enable in Firebase Console > Authentication > Anonymous:', err.code);
-          setSyncBadge('error');
-        });
-      }
+      // v === null = SDK initialising, stay on connecting
     });
     setSyncBadge('connecting');
     return true;
-  } catch(e) { console.error('Firebase init error:', e); setSyncBadge('error'); return false; }
+  } catch(e) {
+    console.error('Firebase init error:', e);
+    setSyncBadge('error');
+    return false;
+  }
 }
 
 function setSyncBadge(state) {
