@@ -273,14 +273,16 @@ tr:last-child td { border-bottom: none; }
     </div>
     <div class="form-group">
       <label>Username</label>
-      <input type="text" id="loginUsername" placeholder="admin" autocomplete="username">
+      <input type="text" id="loginUsername" placeholder="admin" autocomplete="username"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('loginPassword').focus();document.getElementById('loginPassword').select();}">
     </div>
     <div class="form-group">
       <label>Password</label>
-      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();doLogin();}">
     </div>
-    <button class="btn-primary" id="loginBtn" onclick="doLogin()">Sign In</button>
-    <p class="login-err" id="loginErr"></p>
+    <button class="btn-primary" id="loginBtn" type="button" onclick="doLogin()">Sign In</button>
+    <p class="login-err" id="loginErr" style="min-height:18px"></p>
     <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:16px;">Chandrawati Hospital · GT Road Barwadda · Dhanbad</p>
   </div>
 </div>
@@ -1531,8 +1533,10 @@ function loadAllData() {
 }
 
 function loadDashboard() {
-  if (!fbDb) { 
-    document.getElementById('dashStats').innerHTML = `
+  if (!fbDb) {
+    const _dsg = document.getElementById('dashStats');
+    if (!_dsg) return;
+    _dsg.innerHTML = `
       <div class="alert-box warn" style="grid-column:1/-1">
         <div style="font-size:14px;font-weight:700;margin-bottom:8px">🔄 Connecting to Firebase…</div>
         <div style="margin-bottom:8px">Please wait — auto-connecting. If this persists, check your internet connection.</div>
@@ -1548,7 +1552,9 @@ function loadDashboard() {
   const pendingPO = allPOs.filter(p => p.status === 'Pending Approval' || p.status === 'Approved');
   const totalStockVal = allStock.reduce((a,s) => a + (parseFloat(s.purchaseRate||0) * parseFloat(s.qty||0)), 0);
 
-  document.getElementById('dashStats').innerHTML = `
+  const _ds2 = document.getElementById('dashStats');
+  if (!_ds2) return;
+  _ds2.innerHTML = `
     <div class="stat-card stat-teal"><div class="stat-icon">💊</div><div class="stat-info"><p>${allDrugs.length}</p><span>Drugs in Master</span></div></div>
     <div class="stat-card stat-amber"><div class="stat-icon">⚠️</div><div class="stat-info"><p>${low.length}</p><span>Low Stock Items</span></div></div>
     <div class="stat-card stat-red"><div class="stat-icon">🗑️</div><div class="stat-info"><p>${expired.length}</p><span>Expired Items</span></div></div>
@@ -1559,6 +1565,7 @@ function loadDashboard() {
 
   // Low stock list
   const lowDiv = document.getElementById('lowStockList');
+  if (!lowDiv) return;
   if (low.length === 0) { lowDiv.innerHTML = '<p style="color:var(--green);font-size:13px">✅ All items above reorder level</p>'; }
   else {
     lowDiv.innerHTML = low.slice(0,8).map(s => `
@@ -2536,7 +2543,9 @@ const reportDefs = [
 ];
 
 function buildReportButtons() {
-  document.getElementById('reportButtons').innerHTML = reportDefs.map(r =>
+  const rb = document.getElementById('reportButtons');
+  if (!rb) return;
+  rb.innerHTML = reportDefs.map(r =>
     `<button class="card" style="cursor:pointer;text-align:left;border:1.5px solid var(--border);padding:16px;border-radius:8px;transition:border-color 0.15s" onclick="runReport('${r.id}')" onmouseover="this.style.borderColor='var(--teal)'" onmouseout="this.style.borderColor='var(--border)'">
       <div style="font-size:22px;margin-bottom:6px">${r.icon}</div>
       <div style="font-size:13px;font-weight:600;color:var(--text)">${r.name}</div>
