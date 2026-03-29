@@ -1674,15 +1674,7 @@ async function saveDrug() {
     toast('Drug added', 'success');
   }
   closeModal('modalDrug'); resetDrugForm();
-  // Force immediate re-read from Firebase so table updates without delay
-  if (fbDb) {
-    fbDb.ref(FB_DATA_PATH + '/drugs').once('value', function(snap) {
-      allDrugs = [];
-      if (snap.val()) snap.forEach(function(c) { allDrugs.push(Object.assign({key:c.key}, c.val())); });
-      renderDrugs();
-      renderPricing();
-    });
-  }
+  // .on() listener auto-updates allDrugs and calls renderDrugs on every Firebase change
 }
 
 function editDrug(key) {
@@ -1713,9 +1705,18 @@ function editDrug(key) {
 
 async function deleteDrug(key) {
   if (!confirm('Delete this drug from master?')) return;
-  await fbDb.ref(FB_DATA_PATH+'/drugs/' + key).remove();
-  await logAudit('drug_master', 'DELETE', key, '');
-  toast('Drug deleted', 'warn');
+  if (!fbDb) { toast('Not connected','error'); return; }
+  try {
+    await fbDb.ref(FB_DATA_PATH+'/drugs/' + key).remove();
+    // Immediately remove from local array and re-render — don't wait for listener
+    allDrugs = allDrugs.filter(function(d){ return d.key !== key; });
+    renderDrugs();
+    renderPricing();
+    logAudit('drug_master', 'DELETE', key, '').catch(function(){});
+    toast('Drug deleted', 'warn');
+  } catch(e) {
+    toast('Delete failed: ' + e.message, 'error');
+  }
 }
 
 function resetDrugForm() {
@@ -2817,16 +2818,8 @@ function navigate(module) {
   if (module === 'sales')      renderSales();
   if (module === 'pricing')    renderPricing();
   if (module === 'audit')      renderAudit();
-  if (module === 'drugmaster') {
-    if (fbDb && fbConnected) {
-      fbDb.ref(FB_DATA_PATH+'/drugs').once('value', function(snap){ allDrugs=[]; if(snap.val()) snap.forEach(function(c){allDrugs.push(Object.assign({key:c.key},c.val()));}); renderDrugs(); renderPricing(); });
-    } else { renderDrugs(); }
-  }
-  if (module === 'stock') {
-    if (fbDb && fbConnected) {
-      fbDb.ref(FB_DATA_PATH+'/stock').once('value', function(snap){ allStock=[]; if(snap.val()) snap.forEach(function(c){allStock.push(Object.assign({key:c.key},c.val()));}); renderStock(); });
-    } else { renderStock(); }
-  }
+  if (module === 'drugmaster') { renderDrugs(); renderPricing(); }
+  if (module === 'stock') { renderStock(); }
   if (module === 'vendors')    renderVendors();
   if (module === 'indents')    renderIndents();
   if (module === 'dispensing') renderDispenses();
