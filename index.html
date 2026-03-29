@@ -1472,7 +1472,16 @@ function initApp() {
   setInterval(() => {
     document.getElementById('topbarDate').textContent = new Date().toLocaleString('en-IN');
   }, 1000);
-  if (fbDb && fbConnected) loadAllData();
+  // Always set up listeners (safe to call multiple times - Firebase deduplicates)
+  if (fbDb) loadAllData();
+  // After login, force a fresh drug fetch so the table is always populated
+  if (fbDb) {
+    fbDb.ref(FB_DATA_PATH + '/drugs').once('value', function(snap) {
+      allDrugs = [];
+      if (snap.val()) snap.forEach(function(c) { allDrugs.push(Object.assign({key:c.key}, c.val())); });
+      renderDrugs(); renderPricing();
+    });
+  }
   loadDashboard();
   buildReportButtons();
   var _adm=currentUserData&&currentUserData.role==='admin'; document.querySelectorAll('.nav-item').forEach(function(n){var oc=n.getAttribute('onclick')||''; if(oc.indexOf("'users'")!==-1) n.style.display=_adm?'':'none';});
@@ -1674,7 +1683,13 @@ async function saveDrug() {
     toast('Drug added', 'success');
   }
   closeModal('modalDrug'); resetDrugForm();
-  // .on() listener auto-updates allDrugs and calls renderDrugs on every Firebase change
+  // Refresh from Firebase after save
+  if (fbDb) {
+    fbDb.ref(FB_DATA_PATH+'/drugs').once('value', function(snap){
+      allDrugs=[]; if(snap.val()) snap.forEach(function(c){allDrugs.push(Object.assign({key:c.key},c.val()));});
+      renderDrugs(); renderPricing();
+    });
+  }
 }
 
 function editDrug(key) {
@@ -1714,6 +1729,13 @@ async function deleteDrug(key) {
     renderPricing();
     logAudit('drug_master', 'DELETE', key, '').catch(function(){});
     toast('Drug deleted', 'warn');
+    // Confirm sync after 500ms
+    setTimeout(function(){
+      if (fbDb) fbDb.ref(FB_DATA_PATH+'/drugs').once('value', function(snap){
+        allDrugs=[]; if(snap.val()) snap.forEach(function(c){allDrugs.push(Object.assign({key:c.key},c.val()));});
+        renderDrugs(); renderPricing();
+      });
+    }, 500);
   } catch(e) {
     toast('Delete failed: ' + e.message, 'error');
   }
@@ -2818,7 +2840,15 @@ function navigate(module) {
   if (module === 'sales')      renderSales();
   if (module === 'pricing')    renderPricing();
   if (module === 'audit')      renderAudit();
-  if (module === 'drugmaster') { renderDrugs(); renderPricing(); }
+  if (module === 'drugmaster') {
+    renderDrugs(); renderPricing(); // render from cache immediately
+    if (fbDb) { // then refresh from Firebase
+      fbDb.ref(FB_DATA_PATH+'/drugs').once('value', function(snap){
+        allDrugs=[]; if(snap.val()) snap.forEach(function(c){allDrugs.push(Object.assign({key:c.key},c.val()));});
+        renderDrugs(); renderPricing();
+      });
+    }
+  }
   if (module === 'stock') { renderStock(); }
   if (module === 'vendors')    renderVendors();
   if (module === 'indents')    renderIndents();
